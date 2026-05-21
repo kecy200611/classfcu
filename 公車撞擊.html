@@ -189,10 +189,15 @@
         let busMesh;
         
         let isSimulating = false;
+        let isForcedSettled = false;
         let initialSpeed = 20; 
         let currentVelocity = 0;
         let busMass = 13800;
         let yieldStrengthMPa = 400; 
+        
+        let stableTimer = 0;
+        let lastDeformValue = 0;
+        let finalLockedDeform = 0;
         
         const originalNodePositions = [];
         const busLength = 12;
@@ -280,7 +285,6 @@
             busBody.position.set(startX, busHeight / 2 + 0.4, 0);
             scene.add(busBody);
 
-            // 【重磅優化】降低整體結構分段數，徹底解決網頁頓挫問題，大幅提升流暢度
             const segsX = 14; 
             const segsY = 3;
             const segsZ = 4;
@@ -310,7 +314,7 @@
                                 origPos: new THREE.Vector3(x, y, z),
                                 v: new THREE.Vector3(0, 0, 0),
                                 f: new THREE.Vector3(0, 0, 0),
-                                plasticStrain: 0, 
+                                plasticDeformBase: 0, 
                                 edgeX: i,
                                 edgeY: j,
                                 edgeZ: k
@@ -482,6 +486,10 @@
             document.getElementById('start-btn').addEventListener('click', () => {
                 resetSimulation();
                 isSimulating = true;
+                isForcedSettled = false;
+                stableTimer = 0;
+                lastDeformValue = 0;
+                finalLockedDeform = 0;
                 currentVelocity = -(initialSpeed * 1000) / 3600; 
                 document.getElementById('status-display').innerText = "高速衝撞中...";
                 document.getElementById('status-display').style.color = "#ff3333";
@@ -504,6 +512,10 @@
 
         function resetSimulation() {
             isSimulating = false;
+            isForcedSettled = false;
+            stableTimer = 0;
+            lastDeformValue = 0;
+            finalLockedDeform = 0;
             busBody.position.set(startX, busHeight / 2 + 0.4, 0);
             
             physicsNodes.forEach((n, idx) => {
@@ -542,16 +554,15 @@
         }
 
         function physicsStep(dt) {
-            if (!isSimulating) return;
+            if (!isSimulating || isForcedSettled) return;
 
             let worldWallX = wallX - busBody.position.x;
 
             physicsNodes.forEach(n => { n.f.set(0, 0, 0); });
 
-            // 將力學參數映射至真實尺度單位
-            const Area_cm2 = 12.5; // 車體骨架平均等效截面積 (cm²)
-            const E_Elastic = 2100000; // 鋼鐵楊氏模數基礎等效剛度
-            const MaxYieldForce = yieldStrengthMPa * Area_cm2 * 120; // 核心修正：將實際 MPa 轉化為後台可承受之屈服極限力 (N)
+            const Area_cm2 = 12.5; 
+            const E_Elastic = 2100000; 
+            const MaxYieldForce = yieldStrengthMPa * Area_cm2 * 120; 
             const MaterialDamping = 250; 
 
             structuralLinks.forEach(link => {
@@ -565,16 +576,12 @@
 
                 let forceMagnitude = deltaL * E_Elastic;
 
-                // 雙線性真實彈塑性限制：受力不得超越該鋼材厚度的 Yield 極限值
                 if (Math.abs(forceMagnitude) > MaxYieldForce) {
                     let excessForce = forceMagnitude - (Math.sign(forceMagnitude) * MaxYieldForce);
                     forceMagnitude = Math.sign(forceMagnitude) * MaxYieldForce + (excessForce * 0.005);
-                    
-                    // 材料發生永久位移滑移（不可逆）
                     link.plasticDeform += (excessForce / E_Elastic) * 0.92;
                 }
 
-                // 疊加高效率阻尼以吸收殘餘動能，消除倒數現像與發散
                 let vRel = new THREE.Vector3().subVectors(link.n2.v, link.n1.v);
                 forceMagnitude += vRel.dot(dir) * MaterialDamping;
 
@@ -599,7 +606,6 @@
 
                 n.pos.add(n.v.clone().multiplyScalar(dt));
 
-                // 邊界剛體剛性制動
                 let globalX = n.pos.x + busBody.position.x;
                 if (globalX <= wallX) {
                     n.pos.x = worldWallX; 
@@ -633,16 +639,32 @@
                 }
             });
 
-            // 修正顯示邏輯：確保最大潰縮量在定型時鎖定最大值，不再受質心微調影響而倒數
-            let currentDisplayDeform = parseFloat(document.getElementById('deform-display').innerText);
-            if (totalDeform > currentDisplayDeform) {
-                document.getElementById('deform-display').innerText = Math.max(0, totalDeform).toFixed(2);
+            // 實時鎖定最高潰縮值
+            if (totalDeform > finalLockedDeform) {
+                finalLockedDeform = totalDeform;
             }
+            document.getElementById('deform-display').innerText = Math.max(0, finalLockedDeform).toFixed(2);
 
-            if (Math.abs(avgVelX) < 0.002 && isSimulating) {
-                isSimulating = false;
-                document.getElementById('status-display').innerText = "結構潰縮定型（動能完全釋放）";
-                document.getElementById('status-display').style.color = "#ffaa00";
+            // 當速度幾乎歸零，開啟 5 秒穩定計時器
+            if (Math.abs(avgVelX) < 0.005) {
+                stableTimer += (dt * 5); // 乘上子步長迴圈係數
+                let remainingTime = Math.ceil(5 - stableTimer);
+                
+                if (remainingTime > 0) {
+                    document.getElementById('status-display').innerText = `結構固定中... 剩餘 ${remainingTime} 秒強制定型`;
+                    document.getElementById('status-display').style.color = "#00ffcc";
+                } else {
+                    // 計時滿 5 秒，強制定型並停用物理
+                    isSimulating = false;
+                    isForcedSettled = true;
+                    document.getElementById('status-display').innerText = "強制定型完成（潰縮數據已鎖定）";
+                    document.getElementById('status-display').style.color = "#ffaa00";
+                    
+                    // 完全靜止所有質點速度
+                    physicsNodes.forEach(n => { n.v.set(0,0,0); n.f.set(0,0,0); });
+                }
+            } else {
+                stableTimer = 0; // 若尚未完全減速，重設計時器
             }
 
             updateMeshGeometry();
@@ -657,9 +679,11 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            const dt = 0.0012; 
-            for(let i = 0; i < 5; i++) { 
-                physicsStep(dt);
+            if (isSimulating && !isForcedSettled) {
+                const dt = 0.0012; 
+                for(let i = 0; i < 5; i++) { 
+                    physicsStep(dt);
+                }
             }
 
             controls.update();
