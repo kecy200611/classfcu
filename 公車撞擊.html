@@ -189,16 +189,16 @@
         let busMesh;
         
         let isSimulating = false;
-        let isForcedSettled = false;
         let initialSpeed = 20; 
         let currentVelocity = 0;
         let busMass = 13800;
         let yieldStrengthMPa = 400; 
         
-        let stableTimer = 0;
-        let lastDeformValue = 0;
-        let finalLockedDeform = 0;
-        
+        let simulationTimer = 0;
+        const maxSimulationDuration = 5.0; 
+        let lastStableDeform = 0;
+        let hasImpactedWall = false; 
+
         const originalNodePositions = [];
         const busLength = 12;
         const busWidth = 2.5;
@@ -486,13 +486,12 @@
             document.getElementById('start-btn').addEventListener('click', () => {
                 resetSimulation();
                 isSimulating = true;
-                isForcedSettled = false;
-                stableTimer = 0;
-                lastDeformValue = 0;
-                finalLockedDeform = 0;
+                simulationTimer = 0;
+                lastStableDeform = 0;
+                hasImpactedWall = false; 
                 currentVelocity = -(initialSpeed * 1000) / 3600; 
-                document.getElementById('status-display').innerText = "高速衝撞中...";
-                document.getElementById('status-display').style.color = "#ff3333";
+                document.getElementById('status-display').innerText = "車輛行駛中...";
+                document.getElementById('status-display').style.color = "#00ffcc";
             });
 
             calculatePhysicsFormulas();
@@ -512,10 +511,6 @@
 
         function resetSimulation() {
             isSimulating = false;
-            isForcedSettled = false;
-            stableTimer = 0;
-            lastDeformValue = 0;
-            finalLockedDeform = 0;
             busBody.position.set(startX, busHeight / 2 + 0.4, 0);
             
             physicsNodes.forEach((n, idx) => {
@@ -554,7 +549,19 @@
         }
 
         function physicsStep(dt) {
-            if (!isSimulating || isForcedSettled) return;
+            if (!isSimulating) return;
+
+            if (hasImpactedWall) {
+                simulationTimer += dt;
+                if (simulationTimer >= maxSimulationDuration) {
+                    isSimulating = false;
+                    // 時間切斷時強制將所有殘留速度完全清零，切斷二次蠕動
+                    physicsNodes.forEach(n => n.v.set(0,0,0));
+                    document.getElementById('status-display').innerText = "強制定型 (5秒時限已達)";
+                    document.getElementById('status-display').style.color = "#ffaa00";
+                    return;
+                }
+            }
 
             let worldWallX = wallX - busBody.position.x;
 
@@ -591,7 +598,7 @@
             });
 
             let nodeMass = busMass / physicsNodes.length;
-            let totalDeform = 0;
+            let currentStepMaxDeform = 0;
 
             physicsNodes.forEach((n, idx) => {
                 if (n.v.x === 0 && currentVelocity !== 0) {
@@ -611,10 +618,16 @@
                     n.pos.x = worldWallX; 
                     n.v.x = 0; 
                     if (n.f.x < 0) n.f.x = 0; 
+
+                    if (!hasImpactedWall) {
+                        hasImpactedWall = true;
+                        document.getElementById('status-display').innerText = "結構潰縮中...";
+                        document.getElementById('status-display').style.color = "#ff3333";
+                    }
                 }
 
                 let localDeform = originalNodePositions[idx].x - n.pos.x;
-                if (localDeform > totalDeform) totalDeform = localDeform;
+                if (localDeform > currentStepMaxDeform) currentStepMaxDeform = localDeform;
             });
 
             let avgVelX = 0;
@@ -625,6 +638,14 @@
             avgVelX /= physicsNodes.length;
 
             if (avgVelX > 0) avgVelX = 0;
+
+            // 【核心修正】加入臨界速度閾值閘機制 (Velocity Gating)
+            // 如果撞擊發生後，平均速度低於 -0.015 m/s，代表前進動能已微弱到只剩材料的尾端徐變，直接強行截斷速度，避免後半段二次前進
+            if (hasImpactedWall && Math.abs(avgVelX) < 0.015) {
+                avgVelX = 0;
+                physicsNodes.forEach(n => n.v.set(0, 0, 0));
+            }
+
             busBody.position.x += avgVelX * dt;
 
             wheels.forEach(w => {
@@ -639,32 +660,21 @@
                 }
             });
 
-            // 實時鎖定最高潰縮值
-            if (totalDeform > finalLockedDeform) {
-                finalLockedDeform = totalDeform;
-            }
-            document.getElementById('deform-display').innerText = Math.max(0, finalLockedDeform).toFixed(2);
-
-            // 當速度幾乎歸零，開啟 5 秒穩定計時器
-            if (Math.abs(avgVelX) < 0.005) {
-                stableTimer += (dt * 5); // 乘上子步長迴圈係數
-                let remainingTime = Math.ceil(5 - stableTimer);
-                
-                if (remainingTime > 0) {
-                    document.getElementById('status-display').innerText = `結構固定中... 剩餘 ${remainingTime} 秒強制定型`;
-                    document.getElementById('status-display').style.color = "#00ffcc";
-                } else {
-                    // 計時滿 5 秒，強制定型並停用物理
-                    isSimulating = false;
-                    isForcedSettled = true;
-                    document.getElementById('status-display').innerText = "強制定型完成（潰縮數據已鎖定）";
-                    document.getElementById('status-display').style.color = "#ffaa00";
-                    
-                    // 完全靜止所有質點速度
-                    physicsNodes.forEach(n => { n.v.set(0,0,0); n.f.set(0,0,0); });
+            if (hasImpactedWall) {
+                if (currentStepMaxDeform > lastStableDeform) {
+                    lastStableDeform = currentStepMaxDeform;
                 }
+                document.getElementById('deform-display').innerText = Math.max(0, lastStableDeform).toFixed(2);
             } else {
-                stableTimer = 0; // 若尚未完全減速，重設計時器
+                document.getElementById('deform-display').innerText = "0.00";
+            }
+
+            // 當速度被閘制歸零後，模擬自然會以精確的最终型態死鎖，絕不二次滑行
+            if (hasImpactedWall && Math.abs(avgVelX) < 0.001 && isSimulating) {
+                isSimulating = false;
+                physicsNodes.forEach(n => n.v.set(0,0,0)); // 安全清空所有頂點速度
+                document.getElementById('status-display').innerText = "結構潰縮定型 (動能完全釋放)";
+                document.getElementById('status-display').style.color = "#ffaa00";
             }
 
             updateMeshGeometry();
@@ -679,11 +689,9 @@
         function animate() {
             requestAnimationFrame(animate);
 
-            if (isSimulating && !isForcedSettled) {
-                const dt = 0.0012; 
-                for(let i = 0; i < 5; i++) { 
-                    physicsStep(dt);
-                }
+            const dt = 0.0012; 
+            for(let i = 0; i < 5; i++) { 
+                physicsStep(dt);
             }
 
             controls.update();
