@@ -264,6 +264,7 @@
 
   let teamPassword = localStorage.getItem("team_sys_auth_key") || "";
   let userEmail = localStorage.getItem("team_sub_email") || "";
+  let isSyncing = false; // 避免同時推送與輪詢覆蓋
 
   function ensureCredentials() {
     if (!teamPassword) {
@@ -319,7 +320,13 @@
     ensureCredentials();
     if (teamPassword) {
       fetchProjectData(false);
-      setInterval(() => fetchProjectData(false), 45000);
+      setInterval(() => {
+        // 若非同步中且畫面無聚焦在輸入框時才執行自動輪詢
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
+        if (!isSyncing && activeTag !== "input" && activeTag !== "textarea") {
+          fetchProjectData(false);
+        }
+      }, 45000);
     } else {
       updateSyncIndicator("offline", "❌ 未授權密碼");
     }
@@ -327,7 +334,7 @@
 
   /* ========== 遠端 API 串接 ========== */
   async function fetchProjectData(showFeedback = false) {
-    if (!teamPassword) return;
+    if (!teamPassword || isSyncing) return;
     updateSyncIndicator("syncing", "同步中...");
     
     try {
@@ -365,11 +372,13 @@
 
   async function pushProjectData() {
     if (!teamPassword) return;
+    isSyncing = true;
     updateSyncIndicator("syncing", "正在寫入...");
 
     try {
       const payload = {
         authKey: teamPassword,
+        clientBaseUpdated: appData.lastUpdated, // 帶入前端當前持有之版本時間戳
         projects: appData.projects
       };
 
@@ -384,13 +393,21 @@
       const result = await res.json();
 
       if (result.status === "success") {
+        appData.lastUpdated = result.lastUpdated; // 更新為伺服器確認的時間戳
         updateSyncIndicator("online", "🟢 已同步至試算表");
+      } else if (result.status === "conflict") {
+        updateSyncIndicator("offline", "⚠️ 資料版本衝突");
+        alert("⚠️ 另一位成員已先行更新資料！系統將為您載入最新內容，請稍候重試操作。");
+        isSyncing = false;
+        await fetchProjectData(false);
       } else {
         updateSyncIndicator("offline", "❌ " + (result.message || "寫入失敗"));
       }
     } catch (err) {
       console.error(err);
       updateSyncIndicator("offline", "❌ 寫入失敗: 網路異常");
+    } finally {
+      isSyncing = false;
     }
   }
 
