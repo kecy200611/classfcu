@@ -262,7 +262,7 @@
 
   function ensureUserEmail() {
     if (!currentUserEmail) {
-      const input = prompt("請輸入您的成員 Email 進行驗證：", "kecy200611@gmail.com");
+      const input = prompt("請輸入您的成員 Email 進行驗證：", "@gmail.com");
       if (input) {
         currentUserEmail = input.trim().toLowerCase();
         localStorage.setItem("team_user_email", currentUserEmail);
