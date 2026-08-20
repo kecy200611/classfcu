@@ -23,16 +23,6 @@
     body { background-color: var(--bg); color: var(--text); padding: 24px; }
     .container { max-width: 1360px; margin: 0 auto; }
 
-    #loginOverlay {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(4px);
-      display: flex; justify-content: center; align-items: center; z-index: 9999;
-    }
-    .login-box {
-      background: #fff; border-radius: 12px; padding: 32px 28px; width: 90%; max-width: 420px;
-      text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
-    }
-
     header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid var(--border); flex-wrap: wrap; gap: 12px; }
     h1 { font-size: 22px; font-weight: 700; color: var(--primary); }
     .btn-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -44,6 +34,7 @@
     button.secondary { background: #f1f5f9; border-color: var(--border); }
 
     .user-profile { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 4px 12px; background: #e2e8f0; border-radius: 20px; }
+    .btn-switch-user { border: none; background: transparent; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0 4px; text-decoration: underline; }
 
     .sync-status { font-size: 12px; padding: 5px 10px; border-radius: 4px; background: #e2e8f0; color: var(--text-light); font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
     .sync-status.online { background: #d1fae5; color: #065f46; }
@@ -111,33 +102,19 @@
 </head>
 <body>
 
-<div id="loginOverlay" style="display: none;">
-  <div class="login-box">
-    <h2 style="font-size: 20px; color: var(--primary); margin-bottom: 8px;">🔐 專案工單系統</h2>
-    <p style="font-size: 13px; color: var(--text-light); margin-bottom: 20px;">請輸入白名單內的 Email 以驗證身分並載入試算表</p>
-    <form onsubmit="handleUserLogin(event)">
-      <div class="form-group" style="text-align: left;">
-        <label>您的常用 Email</label>
-        <input type="email" id="loginEmailInput" placeholder="kecy200611@gmail.com" required>
-      </div>
-      <button type="submit" class="primary" style="width: 100%; padding: 10px; margin-top: 8px;">驗證並載入</button>
-    </form>
-  </div>
-</div>
-
 <div class="container">
   <header>
     <div>
       <h1>📋 團隊報告與專案工單系統</h1>
-      <p style="font-size: 13px; color: var(--text-light); margin-top: 4px;">Google 試算表即時連線版</p>
+      <p style="font-size: 13px; color: var(--text-light); margin-top: 4px;">團隊白名單安全授權版</p>
     </div>
     <div class="btn-group">
-      <div class="user-profile" id="userBadge" style="display: none;">
-        <span id="userEmailSpan">👤 user@example.com</span>
-        <button onclick="handleLogout()" style="padding: 2px 6px; font-size: 11px; margin-left: 4px;">切換</button>
+      <div class="user-profile">
+        <span id="userEmailDisplay">👤 載入中...</span>
+        <button class="btn-switch-user" onclick="switchUser()">切換</button>
       </div>
       <span class="sync-status" id="cloudStatusIndicator">🔄 同步中...</span>
-      <button onclick="fetchFromSheets(true)">🔄 手動同步</button>
+      <button onclick="fetchProjectData(true)">🔄 手動同步</button>
     </div>
   </header>
 
@@ -145,6 +122,7 @@
     <span>專案列表</span>
   </div>
 
+  <!-- 視圖一：專案列表 -->
   <div id="viewProjects">
     <div class="card">
       <h2>➕ 建立新專案 / 團隊報告</h2>
@@ -166,10 +144,11 @@
     <div class="card">
       <h2>📁 所有專案與報告</h2>
       <div class="project-grid" id="projectList"></div>
-      <div id="noProjects" class="empty-state" style="display: none;">尚未建立任何專案。</div>
+      <div id="noProjects" class="empty-state" style="display: none;">載入中或尚未建立專案...</div>
     </div>
   </div>
 
+  <!-- 視圖二：專案工單細節 -->
   <div id="viewWorkOrders" style="display: none;">
     <div class="card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
@@ -201,6 +180,7 @@
       </div>
     </div>
 
+    <!-- 派發工單 -->
     <div class="card">
       <h2>📝 派發新工單與細節拆解</h2>
       <form id="ticketForm" onsubmit="handleCreateTicket(event)">
@@ -249,6 +229,7 @@
       </form>
     </div>
 
+    <!-- 工單列表 -->
     <div class="card">
       <h2>📑 工單詳細清單</h2>
       <div style="overflow-x: auto;">
@@ -275,9 +256,31 @@
 </div>
 
 <script>
-  const GAS_URL = "https://script.google.com/macros/s/AKfycbxoPG28Nf_gL_zM_sB1zTQxC5V1mzHmIRdue0TcVH3wVSV5vSsY83RpY9Fe82j2YtUyIw/exec";
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxoPG28Nf_gL_zM_sB1zTQxC5V1mzHmIRdue0TcVH3wVSV5vSsY83RpY9Fe82j2YtUyIw/exec";
 
-  let currentUserEmail = localStorage.getItem("user_email") || "";
+  let currentUserEmail = localStorage.getItem("team_user_email") || "";
+
+  function ensureUserEmail() {
+    if (!currentUserEmail) {
+      const input = prompt("請輸入您的成員 Email 進行驗證：", "kecy200611@gmail.com");
+      if (input) {
+        currentUserEmail = input.trim().toLowerCase();
+        localStorage.setItem("team_user_email", currentUserEmail);
+      }
+    }
+    document.getElementById("userEmailDisplay").innerText = currentUserEmail ? `👤 ${currentUserEmail}` : "👤 未登入";
+  }
+
+  function switchUser() {
+    const input = prompt("請輸入欲切換的 Email：", currentUserEmail);
+    if (input) {
+      currentUserEmail = input.trim().toLowerCase();
+      localStorage.setItem("team_user_email", currentUserEmail);
+      document.getElementById("userEmailDisplay").innerText = `👤 ${currentUserEmail}`;
+      fetchProjectData(true);
+    }
+  }
+
   let appData = {
     schemaVersion: "6.0.0",
     lastUpdated: new Date().toISOString(),
@@ -287,53 +290,27 @@
   let activeProjectId = null;
 
   window.onload = () => {
+    ensureUserEmail();
     if (currentUserEmail) {
-      showUserBadge(currentUserEmail);
-      fetchFromSheets(false);
+      fetchProjectData(false);
+      setInterval(() => fetchProjectData(false), 45000);
     } else {
-      document.getElementById("loginOverlay").style.display = "flex";
+      updateSyncIndicator("offline", "❌ 未提供 Email");
     }
   };
 
-  function handleUserLogin(e) {
-    e.preventDefault();
-    const email = document.getElementById("loginEmailInput").value.trim().toLowerCase();
-    if (!email || !email.includes("@")) {
-      alert("請輸入有效的 Email！");
-      return;
-    }
-    currentUserEmail = email;
-    localStorage.setItem("user_email", currentUserEmail);
-    document.getElementById("loginOverlay").style.display = "none";
-    showUserBadge(currentUserEmail);
-    fetchFromSheets(true);
-  }
-
-  function handleLogout() {
-    localStorage.removeItem("user_email");
-    currentUserEmail = "";
-    document.getElementById("loginOverlay").style.display = "flex";
-    document.getElementById("userBadge").style.display = "none";
-  }
-
-  function showUserBadge(email) {
-    const badge = document.getElementById("userBadge");
-    const span = document.getElementById("userEmailSpan");
-    span.innerText = `👤 ${email}`;
-    badge.style.display = "inline-flex";
-  }
-
-  async function fetchFromSheets(showFeedback = false) {
+  /* ========== 遠端 API 資料串接 ========== */
+  async function fetchProjectData(showFeedback = false) {
     if (!currentUserEmail) return;
     updateSyncIndicator("syncing", "同步中...");
+    
     try {
-      const resp = await fetch(`${GAS_URL}?userEmail=${encodeURIComponent(currentUserEmail)}`);
-      const data = await resp.json();
+      const res = await fetch(`${GAS_API_URL}?userEmail=${encodeURIComponent(currentUserEmail)}`);
+      const data = await res.json();
 
       if (data.status === "unauthorized") {
-        updateSyncIndicator("offline", "⛔ 無權限 (不在白名單)");
-        alert("⛔ 存取已被拒絕：您的信箱不在專案夥伴白名單內！");
-        handleLogout();
+        updateSyncIndicator("offline", "❌ " + data.message);
+        alert(data.message);
         return;
       }
 
@@ -347,32 +324,38 @@
           renderProjects();
         }
         updateSyncIndicator("online", "🟢 試算表連線中");
-        if (showFeedback) alert("✅ 已成功同步最新試算表資料！");
+        if (showFeedback) alert("✅ 已成功同步最新資料！");
       }
-    } catch (e) {
-      updateSyncIndicator("offline", "⚠️ 連線異常");
+    } catch (err) {
+      console.error(err);
+      updateSyncIndicator("offline", "❌ 連線失敗: 網路或後端異常");
     }
   }
 
-  async function pushToSheets() {
+  async function pushProjectData() {
     if (!currentUserEmail) return;
-    appData.lastUpdated = new Date().toISOString();
     updateSyncIndicator("syncing", "正在寫入...");
 
     try {
       const payload = {
-        ...appData,
-        operatorEmail: currentUserEmail
+        operatorEmail: currentUserEmail,
+        projects: appData.projects
       };
-      await fetch(GAS_URL, {
+
+      const res = await fetch(GAS_API_URL, {
         method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      updateSyncIndicator("online", "🟢 已同步至試算表");
-    } catch (e) {
-      updateSyncIndicator("offline", "⚠️ 寫入失敗");
+      const result = await res.json();
+
+      if (result.status === "success") {
+        updateSyncIndicator("online", "🟢 已同步至試算表");
+      } else {
+        updateSyncIndicator("offline", "❌ " + (result.message || "寫入失敗"));
+      }
+    } catch (err) {
+      console.error(err);
+      updateSyncIndicator("offline", "❌ 寫入失敗: 網路異常");
     }
   }
 
@@ -383,9 +366,10 @@
   }
 
   function saveData() {
-    pushToSheets();
+    pushProjectData();
   }
 
+  /* ========== 訂閱控制邏輯 ========== */
   function toggleSubscription(projId, isSubscribed, event) {
     if (event) event.stopPropagation();
     const project = appData.projects.find(p => p.id === projId);
@@ -419,6 +403,7 @@
     document.getElementById("projectDetailSubCheckbox").checked = isSubscribed;
   }
 
+  /* ========== 專案管理邏輯 ========== */
   function renderProjects() {
     activeProjectId = null;
     document.getElementById("viewProjects").style.display = "block";
@@ -436,9 +421,9 @@
     noProjects.style.display = "none";
 
     appData.projects.forEach(p => {
-      const total = p.workOrders.length;
-      const closed = p.workOrders.filter(w => w.status === "Closed").length;
-      const totalEstHours = p.workOrders.reduce((sum, w) => sum + (w.estHours || 0), 0);
+      const total = (p.workOrders || []).length;
+      const closed = (p.workOrders || []).filter(w => w.status === "Closed").length;
+      const totalEstHours = (p.workOrders || []).reduce((sum, w) => sum + (w.estHours || 0), 0);
       const isSubscribed = (p.subscribers || []).includes(currentUserEmail);
 
       const div = document.createElement("div");
@@ -521,6 +506,7 @@
     updateMetrics();
   }
 
+  /* ========== 子任務表單 ========== */
   function addSubtaskRow() {
     const container = document.getElementById("subtaskInputs");
     const div = document.createElement("div");
@@ -542,10 +528,11 @@
     `;
   }
 
+  /* ========== 工單管理邏輯 ========== */
   function updateNextWONumber() {
     const project = appData.projects.find(p => p.id === activeProjectId);
     if (!project) return;
-    const count = project.workOrders.length + 1;
+    const count = (project.workOrders || []).length + 1;
     document.getElementById("woNumber").value = `WO-${String(count).padStart(3, '0')}`;
   }
 
@@ -580,6 +567,7 @@
       createdAt: new Date().toISOString()
     };
 
+    project.workOrders = project.workOrders || [];
     project.workOrders.unshift(newTicket);
     saveData();
     renderTickets();
@@ -665,13 +653,14 @@
     const noTickets = document.getElementById("noTickets");
     tbody.innerHTML = "";
 
-    if (project.workOrders.length === 0) {
+    const wos = project.workOrders || [];
+    if (wos.length === 0) {
       noTickets.style.display = "block";
       return;
     }
     noTickets.style.display = "none";
 
-    project.workOrders.forEach(t => {
+    wos.forEach(t => {
       const totalSt = (t.subtasks || []).length;
       const completedSt = (t.subtasks || []).filter(s => s.completed).length;
       const progressPercent = totalSt > 0 ? Math.round((completedSt / totalSt) * 100) : (t.status === "Closed" ? 100 : 0);
@@ -734,7 +723,7 @@
   function updateMetrics() {
     const project = appData.projects.find(p => p.id === activeProjectId);
     if (!project) return;
-    const wos = project.workOrders;
+    const wos = project.workOrders || [];
 
     document.getElementById("metricTotal").innerText = wos.length;
     document.getElementById("metricOpen").innerText = wos.filter(w => w.status === "Open").length;
