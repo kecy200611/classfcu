@@ -1,11 +1,9 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>團隊報告與專案工單管理系統</title>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     :root {
       --primary: #0f172a;
@@ -21,1144 +19,600 @@
       --purple: #8b5cf6;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-
-    body {
-      background-color: var(--bg);
-      color: var(--text);
-      padding: 24px;
-    }
-
-    .container {
-      max-width: 1360px;
-      margin: 0 auto;
-    }
-
-    /* 登入遮罩 */
-    #loginOverlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(15, 23, 42, 0.85);
-      backdrop-filter: blur(4px);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-    }
-
-    .login-box {
-      background: #fff;
-      border-radius: 12px;
-      padding: 36px 32px;
-      width: 90%;
-      max-width: 440px;
-      text-align: center;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
-    }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-      padding-bottom: 16px;
-      border-bottom: 2px solid var(--border);
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-
-    h1 {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--primary);
-    }
-
-    .btn-group {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    button {
-      cursor: pointer;
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 500;
-      border: 1px solid var(--border);
-      background: #fff;
-      transition: all 0.2s;
-    }
-
-    button:hover {
-      background: #f1f5f9;
-    }
-
-    button.primary {
-      background: var(--accent);
-      color: white;
-      border-color: var(--accent);
-    }
-
-    button.primary:hover {
-      background: #1d4ed8;
-    }
-
-    button.secondary {
-      background: #f1f5f9;
-      border-color: var(--border);
-    }
-
-    .user-profile {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      padding: 4px 10px;
-      background: #e2e8f0;
-      border-radius: 20px;
-    }
-
-    .user-avatar {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-    }
-
-    .sync-status {
-      font-size: 12px;
-      padding: 5px 10px;
-      border-radius: 4px;
-      background: #e2e8f0;
-      color: var(--text-light);
-      font-weight: 600;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .sync-status.online {
-      background: #d1fae5;
-      color: #065f46;
-    }
-
-    .sync-status.syncing {
-      background: #e0e7ff;
-      color: #3730a3;
-    }
-
-    .sync-status.offline {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-
-    .nav-breadcrumb {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 16px;
-      font-size: 14px;
-      color: var(--text-light);
-    }
-
-    .nav-link {
-      color: var(--accent);
-      cursor: pointer;
-      font-weight: 600;
-      text-decoration: underline;
-    }
-
-    .card {
-      background: var(--card-bg);
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      padding: 20px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-      margin-bottom: 24px;
-    }
-
-    .card h2 {
-      font-size: 16px;
-      margin-bottom: 16px;
-      color: var(--primary);
-    }
-
-    .form-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    .form-group {
-      margin-bottom: 12px;
-    }
-
-    label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 6px;
-    }
-
-    input,
-    select,
-    textarea {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 14px;
-      background: #fff;
-    }
-
-    input:focus,
-    select:focus,
-    textarea:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-
-    .project-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 16px;
-    }
-
-    .project-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 18px;
-      cursor: pointer;
-      transition: all 0.2s;
-      position: relative;
-    }
-
-    .project-card:hover {
-      border-color: var(--accent);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    .project-card h3 {
-      font-size: 16px;
-      color: var(--primary);
-      margin-bottom: 8px;
-    }
-
-    .project-desc {
-      font-size: 13px;
-      color: var(--text-light);
-      margin-bottom: 12px;
-      min-height: 38px;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-
-    .project-sub-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding-bottom: 10px;
-      margin-bottom: 10px;
-      border-bottom: 1px dashed var(--border);
-      font-size: 12px;
-    }
-
-    .sub-checkbox-label {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-weight: 600;
-      cursor: pointer;
-      color: var(--accent);
-    }
-
-    .project-stats {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text);
-      padding-top: 4px;
-    }
-
-    .metrics-section {
-      margin-bottom: 16px;
-    }
-
-    .metrics-header {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-light);
-      margin-bottom: 8px;
-    }
-
-    .metrics-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-      gap: 12px;
-    }
-
-    .metric-card {
-      background: #f8fafc;
-      padding: 12px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      text-align: center;
-    }
-
-    .metric-title {
-      font-size: 12px;
-      color: var(--text-light);
-      margin-bottom: 4px;
-    }
-
-    .metric-value {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--primary);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-      font-size: 13px;
-    }
-
-    th {
-      background: #f8fafc;
-      padding: 10px;
-      font-weight: 600;
-      color: var(--text-light);
-      border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-    }
-
-    td {
-      padding: 10px;
-      border-bottom: 1px solid var(--border);
-      vertical-align: top;
-    }
-
-    tr:hover {
-      background: #fbfcfe;
-    }
-
-    .wo-id {
-      font-family: monospace;
-      font-weight: 700;
-      color: var(--accent);
-    }
-
-    .badge {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .badge-research {
-      background: #e0f2fe;
-      color: #0369a1;
-    }
-
-    .badge-execution {
-      background: #e0e7ff;
-      color: #3730a3;
-    }
-
-    .badge-visuals {
-      background: #fef3c7;
-      color: #92400e;
-    }
-
-    .badge-review {
-      background: #f3e8ff;
-      color: #6b21a8;
-    }
-
-    .badge-coordination {
-      background: #f1f5f9;
-      color: #475569;
-    }
-
-    .progress-bar-container {
-      background: #e2e8f0;
-      border-radius: 4px;
-      height: 6px;
-      width: 100%;
-      overflow: hidden;
-      margin-top: 6px;
-    }
-
-    .progress-bar-fill {
-      background: var(--accent);
-      height: 100%;
-      transition: width 0.3s;
-    }
-
-    .subtask-list {
-      margin-top: 8px;
-      font-size: 12px;
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .subtask-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--text);
-    }
-
-    .subtask-item.completed span {
-      text-decoration: line-through;
-      color: var(--text-light);
-    }
-
-    .subtask-item input[type="checkbox"] {
-      width: auto;
-      cursor: pointer;
-    }
-
-    .btn-delete {
-      color: var(--danger);
-      border-color: #fecaca;
-      padding: 4px 8px;
-      font-size: 12px;
-    }
-
-    .btn-delete:hover {
-      background: #fee2e2;
-    }
-
-    .hours-input {
-      width: 65px;
-      padding: 4px 6px;
-      font-size: 12px;
-      text-align: right;
-    }
-
-    .empty-state {
-      text-align: center;
-      color: var(--text-light);
-      padding: 32px 0;
-      font-size: 14px;
-    }
-
-    .dynamic-subtask-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 6px;
-    }
-
-    .dynamic-subtask-row input {
-      flex: 1;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 24px; }
+    .container { max-width: 1360px; margin: 0 auto; }
+
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid var(--border); flex-wrap: wrap; gap: 12px; }
+    h1 { font-size: 22px; font-weight: 700; color: var(--primary); }
+    .btn-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    button { cursor: pointer; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid var(--border); background: #fff; transition: all 0.2s; }
+    button:hover { background: #f1f5f9; }
+    button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+    button.primary:hover { background: #1d4ed8; }
+    button.secondary { background: #f1f5f9; border-color: var(--border); }
+
+    .user-profile { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 4px 12px; background: #e2e8f0; border-radius: 20px; }
+
+    .sync-status { font-size: 12px; padding: 5px 10px; border-radius: 4px; background: #e2e8f0; color: var(--text-light); font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+    .sync-status.online { background: #d1fae5; color: #065f46; }
+    .sync-status.syncing { background: #e0e7ff; color: #3730a3; }
+    .sync-status.offline { background: #fee2e2; color: #991b1b; }
+
+    .nav-breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 14px; color: var(--text-light); }
+    .nav-link { color: var(--accent); cursor: pointer; font-weight: 600; text-decoration: underline; }
+
+    .card { background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border); padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 24px; }
+    .card h2 { font-size: 16px; margin-bottom: 16px; color: var(--primary); }
+
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    .form-group { margin-bottom: 12px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    input, select, textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; background: #fff; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+
+    .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .project-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 18px; cursor: pointer; transition: all 0.2s; position: relative; }
+    .project-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .project-card h3 { font-size: 16px; color: var(--primary); margin-bottom: 8px; }
+    .project-desc { font-size: 13px; color: var(--text-light); margin-bottom: 12px; min-height: 38px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    
+    .project-sub-bar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px dashed var(--border); font-size: 12px; }
+    .sub-checkbox-label { display: flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; color: var(--accent); }
+    .sub-checkbox-label input[type="checkbox"] { width: auto; cursor: pointer; }
+    .project-stats { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--text); padding-top: 4px; }
+
+    .metrics-section { margin-bottom: 16px; }
+    .metrics-header { font-size: 13px; font-weight: 600; color: var(--text-light); margin-bottom: 8px; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+    .metric-card { background: #f8fafc; padding: 12px; border-radius: 6px; border: 1px solid var(--border); text-align: center; }
+    .metric-title { font-size: 12px; color: var(--text-light); margin-bottom: 4px; }
+    .metric-value { font-size: 18px; font-weight: 700; color: var(--primary); }
+
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+    th { background: #f8fafc; padding: 10px; font-weight: 600; color: var(--text-light); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:hover { background: #fbfcfe; }
+
+    .wo-id { font-family: monospace; font-weight: 700; color: var(--accent); }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .badge-research { background: #e0f2fe; color: #0369a1; }
+    .badge-execution { background: #e0e7ff; color: #3730a3; }
+    .badge-visuals { background: #fef3c7; color: #92400e; }
+    .badge-review { background: #f3e8ff; color: #6b21a8; }
+    .badge-coordination { background: #f1f5f9; color: #475569; }
+
+    .progress-bar-container { background: #e2e8f0; border-radius: 4px; height: 6px; width: 100%; overflow: hidden; margin-top: 6px; }
+    .progress-bar-fill { background: var(--accent); height: 100%; transition: width 0.3s; }
+
+    .subtask-list { margin-top: 8px; font-size: 12px; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .subtask-item { display: flex; align-items: center; gap: 6px; color: var(--text); }
+    .subtask-item.completed span { text-decoration: line-through; color: var(--text-light); }
+    .subtask-item input[type="checkbox"] { width: auto; cursor: pointer; }
+
+    .btn-delete { color: var(--danger); border-color: #fecaca; padding: 4px 8px; font-size: 12px; }
+    .btn-delete:hover { background: #fee2e2; }
+    .hours-input { width: 65px; padding: 4px 6px; font-size: 12px; text-align: right; }
+    .empty-state { text-align: center; color: var(--text-light); padding: 32px 0; font-size: 14px; }
+    .dynamic-subtask-row { display: flex; gap: 8px; margin-bottom: 6px; }
+    .dynamic-subtask-row input { flex: 1; }
   </style>
 </head>
-
 <body>
 
-  <!-- 登入視窗 -->
-  <div id="loginOverlay">
-    <div class="login-box">
-      <h2 style="font-size: 20px; color: var(--primary); margin-bottom: 8px;">🔐 專案工單系統登入</h2>
-      <p style="font-size: 13px; color: var(--text-light); margin-bottom: 24px;">登入 Google 帳號以啟用專案個人化進度與每日 Email 變更訂閱通知
-      </p>
-      <div style="display: flex; justify-content: center; margin-bottom: 16px;">
-        <div id="g_id_onload" data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
-          data-callback="handleGoogleLogin" data-auto_prompt="false">
-        </div>
-        <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
-          data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
+<div class="container">
+  <header>
+    <div>
+      <h1>📋 團隊報告與專案工單系統</h1>
+      <p style="font-size: 13px; color: var(--text-light); margin-top: 4px;">團隊白名單安全授權版</p>
+    </div>
+    <div class="btn-group">
+      <div class="user-profile">
+        <span>👤 <?= currentUserEmail ?></span>
       </div>
-      <div
-        style="font-size: 12px; color: var(--text-light); margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px;">
-        若於本機直接開啟測試，可輸入您的 Email 快速進入：
-        <div style="display: flex; gap: 6px; margin-top: 8px;">
-          <input type="email" id="manualEmailInput" placeholder="your_email@gmail.com"
-            style="font-size: 13px; padding: 6px 8px;">
-          <button class="primary" onclick="handleManualLogin()">進入</button>
+      <span class="sync-status" id="cloudStatusIndicator">🔄 同步中...</span>
+      <button onclick="fetchProjectData(true)">🔄 手動同步</button>
+    </div>
+  </header>
+
+  <div class="nav-breadcrumb" id="breadcrumb">
+    <span>專案列表</span>
+  </div>
+
+  <!-- 視圖一：專案列表 -->
+  <div id="viewProjects">
+    <div class="card">
+      <h2>➕ 建立新專案 / 團隊報告</h2>
+      <form id="projectForm" onsubmit="handleCreateProject(event)">
+        <div class="form-grid">
+          <div>
+            <label>專案 / 報告主題</label>
+            <input type="text" id="newProjectName" placeholder="請輸入專案名稱或主題..." required>
+          </div>
+          <div>
+            <label>目標說明與範疇</label>
+            <input type="text" id="newProjectDesc" placeholder="請簡述核心目標、交付成果或範疇..." required>
+          </div>
         </div>
-      </div>
+        <button type="submit" class="primary">建立專案</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>📁 所有專案與報告</h2>
+      <div class="project-grid" id="projectList"></div>
+      <div id="noProjects" class="empty-state" style="display: none;">載入中或尚未建立專案...</div>
     </div>
   </div>
 
-  <div class="container">
-    <header>
-      <div>
-        <h1>📋 團隊報告與專案工單系統</h1>
-        <p style="font-size: 13px; color: var(--text-light); margin-top: 4px;">每日 06:00 變更自動 Email 追蹤版</p>
+  <!-- 視圖二：專案工單細節 -->
+  <div id="viewWorkOrders" style="display: none;">
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="margin-bottom: 0;">📊 團隊進度與工作量統計</h2>
+        <label class="sub-checkbox-label" style="font-size: 13px;">
+          <input type="checkbox" id="projectDetailSubCheckbox" onchange="toggleProjectSubscriptionFromDetail(this.checked)">
+          🔔 訂閱每日 06:00 變更郵件通知
+        </label>
       </div>
-      <div class="btn-group">
-        <div class="user-profile" id="userBadge" style="display: none;">
-          <span id="userEmailSpan">user@example.com</span>
-          <button onclick="handleLogout()" style="padding: 2px 6px; font-size: 11px; margin-left: 4px;">登出</button>
+      <div class="metrics-section">
+        <div class="metrics-header">工單狀態統計</div>
+        <div class="metrics-grid">
+          <div class="metric-card"><div class="metric-title">總工單數</div><div class="metric-value" id="metricTotal">0</div></div>
+          <div class="metric-card"><div class="metric-title">待辦 (Open)</div><div class="metric-value" id="metricOpen" style="color: var(--text-light);">0</div></div>
+          <div class="metric-card"><div class="metric-title">進行中 (In Progress)</div><div class="metric-value" id="metricProgress" style="color: var(--accent);">0</div></div>
+          <div class="metric-card"><div class="metric-title">待審核 (Review)</div><div class="metric-value" id="metricReview" style="color: var(--warning);">0</div></div>
+          <div class="metric-card"><div class="metric-title">已結案 (Closed)</div><div class="metric-value" id="metricDone" style="color: var(--success);">0</div></div>
         </div>
-        <span class="sync-status" id="cloudStatusIndicator">🔄 連線 Google 試算表中...</span>
-        <button onclick="fetchFromSheets(true)">🔄 手動同步</button>
-        <button onclick="exportToJSON()">⬇️ 匯出 JSON</button>
-      </div>
-    </header>
-
-    <div class="nav-breadcrumb" id="breadcrumb">
-      <span>專案列表</span>
-    </div>
-
-    <!-- 視圖一：專案列表 -->
-    <div id="viewProjects">
-      <div class="card">
-        <h2>➕ 建立新專案 / 團隊報告</h2>
-        <form id="projectForm" onsubmit="handleCreateProject(event)">
-          <div class="form-grid">
-            <div>
-              <label>專案 / 報告主題</label>
-              <input type="text" id="newProjectName" placeholder="請輸入專案名稱或主題..." required>
-            </div>
-            <div>
-              <label>目標說明與範疇</label>
-              <input type="text" id="newProjectDesc" placeholder="請簡述核心目標、交付成果或範疇..." required>
-            </div>
-          </div>
-          <button type="submit" class="primary">建立專案</button>
-        </form>
       </div>
 
-      <div class="card">
-        <h2>📁 所有專案與報告</h2>
-        <div class="project-grid" id="projectList"></div>
-        <div id="noProjects" class="empty-state" style="display: none;">載入中或尚未建立專案...</div>
+      <div class="metrics-section" style="margin-bottom: 0;">
+        <div class="metrics-header">工作量負荷與工時統計 (人時 / Hours)</div>
+        <div class="metrics-grid">
+          <div class="metric-card"><div class="metric-title">預估總工時</div><div class="metric-value" id="metricEstHours">0 h</div></div>
+          <div class="metric-card"><div class="metric-title">實際投入工時</div><div class="metric-value" id="metricActHours">0 h</div></div>
+          <div class="metric-card"><div class="metric-title">工時耗用比</div><div class="metric-value" id="metricHourRatio" style="color: var(--purple);">0%</div></div>
+          <div class="metric-card"><div class="metric-title">細節子任務完成率</div><div class="metric-value" id="metricSubtaskRate" style="color: var(--success);">0%</div></div>
+        </div>
       </div>
     </div>
 
-    <!-- 視圖二：專案工單細節 -->
-    <div id="viewWorkOrders" style="display: none;">
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h2 style="margin-bottom: 0;">📊 團隊進度與工作量統計</h2>
-          <label class="sub-checkbox-label" style="font-size: 13px;">
-            <input type="checkbox" id="projectDetailSubCheckbox"
-              onchange="toggleProjectSubscriptionFromDetail(this.checked)">
-            🔔 訂閱每日 06:00 變更郵件通知
-          </label>
+    <!-- 派發工單 -->
+    <div class="card">
+      <h2>📝 派發新工單與細節拆解</h2>
+      <form id="ticketForm" onsubmit="handleCreateTicket(event)">
+        <div class="form-grid">
+          <div><label>工單編號</label><input type="text" id="woNumber" readonly></div>
+          <div>
+            <label>任務性質分類</label>
+            <select id="category">
+              <option value="Research">調研分析 (Research)</option>
+              <option value="Execution">核心產出 (Execution)</option>
+              <option value="Visuals">簡報視覺 (Visuals)</option>
+              <option value="Review">審查演練 (Review)</option>
+              <option value="Coordination">行政協調 (Coordination)</option>
+            </select>
+          </div>
+          <div><label>負責人員</label><input type="text" id="assignee" placeholder="請輸入負責人姓名" required></div>
+          <div><label>預估工時 (小時)</label><input type="number" id="estHours" min="0" step="0.5" placeholder="0" required></div>
+          <div><label>截止日期</label><input type="date" id="deadline" required></div>
+          <div>
+            <label>初始狀態</label>
+            <select id="status">
+              <option value="Open">待辦 (Open)</option>
+              <option value="In Progress">進行中 (In Progress)</option>
+              <option value="Review">待審核 (Review)</option>
+              <option value="Closed">已結案 (Closed)</option>
+            </select>
+          </div>
         </div>
-        <div class="metrics-section">
-          <div class="metrics-header">工單狀態統計</div>
-          <div class="metrics-grid">
-            <div class="metric-card">
-              <div class="metric-title">總工單數</div>
-              <div class="metric-value" id="metricTotal">0</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-title">待辦 (Open)</div>
-              <div class="metric-value" id="metricOpen" style="color: var(--text-light);">0</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-title">進行中 (In Progress)</div>
-              <div class="metric-value" id="metricProgress" style="color: var(--accent);">0</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-title">待審核 (Review)</div>
-              <div class="metric-value" id="metricReview" style="color: var(--warning);">0</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-title">已結案 (Closed)</div>
-              <div class="metric-value" id="metricDone" style="color: var(--success);">0</div>
+
+        <div class="form-group">
+          <label>主要任務描述與交付目標</label>
+          <textarea id="taskDesc" placeholder="請詳細說明任務目標、規格與交付產出標準..." required style="height: 55px;"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>細節子任務 / 驗收檢核清單</label>
+          <div id="subtaskInputs">
+            <div class="dynamic-subtask-row">
+              <input type="text" class="subtask-field" placeholder="細節步驟或驗收項目 1 (選填)">
+              <button type="button" class="secondary" onclick="addSubtaskRow()">＋ 新增細項</button>
             </div>
           </div>
         </div>
 
-        <div class="metrics-section" style="margin-bottom: 0;">
-          <div class="metrics-header">工作量負荷與工時統計 (人時 / Hours)</div>
-          <div class="metrics-grid">
-            <div class="metric-card">
-              <div class="metric-title">預估總工時</div>
-              <div class="metric-value" id="metricEstHours">0 h</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-title">實際投入工時</div>
-              <div class="metric-value" id="metricActHours">0 h</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-title">工時耗用比</div>
-              <div class="metric-value" id="metricHourRatio" style="color: var(--purple);">0%</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-title">細節子任務完成率</div>
-              <div class="metric-value" id="metricSubtaskRate" style="color: var(--success);">0%</div>
-            </div>
-          </div>
-        </div>
+        <button type="submit" class="primary">🚀 派發此工單</button>
+      </form>
+    </div>
+
+    <!-- 工單列表 -->
+    <div class="card">
+      <h2>📑 工單詳細清單</h2>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>工單編號</th>
+              <th>任務性質</th>
+              <th style="min-width: 240px;">任務目標與細節進度</th>
+              <th>負責人</th>
+              <th>預估工時</th>
+              <th>實際工時</th>
+              <th>截止日</th>
+              <th>狀態</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="ticketTableBody"></tbody>
+        </table>
       </div>
-
-      <!-- 派發工單 -->
-      <div class="card">
-        <h2>📝 派發新工單與細節拆解</h2>
-        <form id="ticketForm" onsubmit="handleCreateTicket(event)">
-          <div class="form-grid">
-            <div><label>工單編號</label><input type="text" id="woNumber" readonly></div>
-            <div>
-              <label>任務性質分類</label>
-              <select id="category">
-                <option value="Research">調研分析 (Research)</option>
-                <option value="Execution">核心產出 (Execution)</option>
-                <option value="Visuals">簡報視覺 (Visuals)</option>
-                <option value="Review">審查演練 (Review)</option>
-                <option value="Coordination">行政協調 (Coordination)</option>
-              </select>
-            </div>
-            <div><label>負責人員</label><input type="text" id="assignee" placeholder="請輸入負責人姓名" required></div>
-            <div><label>預估工時 (小時)</label><input type="number" id="estHours" min="0" step="0.5" placeholder="0" required>
-            </div>
-            <div><label>截止日期</label><input type="date" id="deadline" required></div>
-            <div>
-              <label>初始狀態</label>
-              <select id="status">
-                <option value="Open">待辦 (Open)</option>
-                <option value="In Progress">進行中 (In Progress)</option>
-                <option value="Review">待審核 (Review)</option>
-                <option value="Closed">已結案 (Closed)</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>主要任務描述與交付目標</label>
-            <textarea id="taskDesc" placeholder="請詳細說明任務目標、規格與交付產出標準..." required style="height: 55px;"></textarea>
-          </div>
-
-          <div class="form-group">
-            <label>細節子任務 / 驗收檢核清單</label>
-            <div id="subtaskInputs">
-              <div class="dynamic-subtask-row">
-                <input type="text" class="subtask-field" placeholder="細節步驟或驗收項目 1 (選填)">
-                <button type="button" class="secondary" onclick="addSubtaskRow()">＋ 新增細項</button>
-              </div>
-            </div>
-          </div>
-
-          <button type="submit" class="primary">🚀 派發此工單</button>
-        </form>
-      </div>
-
-      <!-- 工單列表 -->
-      <div class="card">
-        <h2>📑 工單詳細清單</h2>
-        <div style="overflow-x: auto;">
-          <table>
-            <thead>
-              <tr>
-                <th>工單編號</th>
-                <th>任務性質</th>
-                <th style="min-width: 240px;">任務目標與細節進度</th>
-                <th>負責人</th>
-                <th>預估工時</th>
-                <th>實際工時</th>
-                <th>截止日</th>
-                <th>狀態</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="ticketTableBody"></tbody>
-          </table>
-        </div>
-        <div id="noTickets" class="empty-state" style="display: none;">此專案內尚無工單。</div>
-      </div>
+      <div id="noTickets" class="empty-state" style="display: none;">此專案內尚無工單。</div>
     </div>
   </div>
+</div>
 
-  <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxoPG28Nf_gL_zM_sB1zTQxC5V1mzHmIRdue0TcVH3wVSV5vSsY83RpY9Fe82j2YtUyIw/exec";
+<script>
+  const currentUserEmail = "<?= currentUserEmail ?>".toLowerCase();
 
-    let currentUserEmail = localStorage.getItem("user_email") || "";
-    let appData = {
-      schemaVersion: "6.0.0",
-      lastUpdated: new Date().toISOString(),
-      projects: []
-    };
+  let appData = {
+    schemaVersion: "6.0.0",
+    lastUpdated: new Date().toISOString(),
+    projects: []
+  };
 
-    let activeProjectId = null;
+  let activeProjectId = null;
 
-    window.onload = async () => {
-      if (currentUserEmail) {
-        document.getElementById("loginOverlay").style.display = "none";
-        showUserBadge(currentUserEmail);
-      }
+  window.onload = () => {
+    fetchProjectData(false);
+    setInterval(() => fetchProjectData(false), 45000);
+  };
 
-      const saved = localStorage.getItem("work_order_db");
-      if (saved) {
-        try { appData = normalizeData(JSON.parse(saved)); } catch (e) { }
-      }
-      renderProjects();
-
-      await fetchFromSheets(false);
-      setInterval(() => fetchFromSheets(false), 45000);
-    };
-
-    /* ========== 登入身分驗證 ========== */
-    function handleGoogleLogin(response) {
-      try {
-        const base64Url = response.credential.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-
-        if (payload && payload.email) {
-          currentUserEmail = payload.email.toLowerCase();
-          localStorage.setItem("user_email", currentUserEmail);
-          document.getElementById("loginOverlay").style.display = "none";
-          showUserBadge(currentUserEmail);
-          renderProjects();
-        }
-      } catch (e) {
-        alert("登入解析失敗");
-      }
-    }
-
-    function handleManualLogin() {
-      const email = document.getElementById("manualEmailInput").value.trim();
-      if (!email || !email.includes("@")) {
-        alert("請輸入有效的 Email！");
-        return;
-      }
-      currentUserEmail = email.toLowerCase();
-      localStorage.setItem("user_email", currentUserEmail);
-      document.getElementById("loginOverlay").style.display = "none";
-      showUserBadge(currentUserEmail);
-      renderProjects();
-    }
-
-    function handleLogout() {
-      localStorage.removeItem("user_email");
-      currentUserEmail = "";
-      document.getElementById("loginOverlay").style.display = "flex";
-      document.getElementById("userBadge").style.display = "none";
-    }
-
-    function showUserBadge(email) {
-      const badge = document.getElementById("userBadge");
-      const span = document.getElementById("userEmailSpan");
-      span.innerText = `👤 ${email}`;
-      badge.style.display = "inline-flex";
-    }
-
-    /* ========== 試算表連線同步 ========== */
-    async function fetchFromSheets(showFeedback = false) {
-      updateSyncIndicator("syncing", "試算表同步中...");
-      try {
-        const resp = await fetch(`${GAS_URL}?userEmail=${encodeURIComponent(currentUserEmail)}`);
-        if (resp.ok) {
-          const remoteData = await resp.json();
-          if (remoteData && remoteData.projects) {
-            appData = normalizeData(remoteData);
-            saveLocalCacheOnly();
-            if (activeProjectId) {
-              renderTickets();
-              updateMetrics();
-              updateDetailSubscriptionState();
-            } else {
-              renderProjects();
-            }
-            updateSyncIndicator("online", "🟢 Google 試算表已連線");
-            if (showFeedback) alert("✅ 已成功從 Google 試算表同步最新資料！");
+  /* ========== 呼叫 GAS 後端安全函式 ========== */
+  function fetchProjectData(showFeedback = false) {
+    updateSyncIndicator("syncing", "同步中...");
+    google.script.run
+      .withSuccessHandler((data) => {
+        if (data && data.projects) {
+          appData = data;
+          if (activeProjectId) {
+            renderTickets();
+            updateMetrics();
+            updateDetailSubscriptionState();
+          } else {
+            renderProjects();
           }
-        } else {
-          updateSyncIndicator("offline", "⚠️ 讀取異常 (使用快取)");
+          updateSyncIndicator("online", "🟢 試算表連線中");
+          if (showFeedback) alert("✅ 已成功同步最新資料！");
         }
-      } catch (e) {
-        updateSyncIndicator("offline", "⚠️ 離線狀態 (使用本機快取)");
-      }
+      })
+      .withFailureHandler((err) => {
+        updateSyncIndicator("offline", "❌ " + err.message);
+      })
+      .getProjectData();
+  }
+
+  function pushProjectData() {
+    updateSyncIndicator("syncing", "正在寫入...");
+    google.script.run
+      .withSuccessHandler(() => {
+        updateSyncIndicator("online", "🟢 已同步至試算表");
+      })
+      .withFailureHandler((err) => {
+        updateSyncIndicator("offline", "❌ 寫入失敗: " + err.message);
+      })
+      .saveProjectData(appData);
+  }
+
+  function updateSyncIndicator(status, text) {
+    const el = document.getElementById("cloudStatusIndicator");
+    el.className = `sync-status ${status}`;
+    el.innerText = text;
+  }
+
+  function saveData() {
+    pushProjectData();
+  }
+
+  /* ========== 訂閱控制邏輯 ========== */
+  function toggleSubscription(projId, isSubscribed, event) {
+    if (event) event.stopPropagation();
+    const project = appData.projects.find(p => p.id === projId);
+    if (!project) return;
+
+    project.subscribers = project.subscribers || [];
+    const index = project.subscribers.indexOf(currentUserEmail);
+
+    if (isSubscribed && index === -1) {
+      project.subscribers.push(currentUserEmail);
+    } else if (!isSubscribed && index !== -1) {
+      project.subscribers.splice(index, 1);
     }
 
-    async function pushToSheets() {
-      appData.lastUpdated = new Date().toISOString();
-      saveLocalCacheOnly();
-      updateSyncIndicator("syncing", "正在回寫試算表...");
-
-      try {
-        const payload = {
-          ...appData,
-          operatorEmail: currentUserEmail // 附帶操作者身分以供後端驗證
-        };
-        await fetch(GAS_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-        updateSyncIndicator("online", "🟢 Google 試算表已更新");
-      } catch (e) {
-        updateSyncIndicator("offline", "⚠️ 回寫失敗 (保留於本機)");
-      }
+    saveData();
+    renderProjects();
+    if (activeProjectId === projId) {
+      updateDetailSubscriptionState();
     }
+  }
 
-    function updateSyncIndicator(status, text) {
-      const el = document.getElementById("cloudStatusIndicator");
-      el.className = `sync-status ${status}`;
-      el.innerText = text;
+  function toggleProjectSubscriptionFromDetail(isSubscribed) {
+    if (!activeProjectId) return;
+    toggleSubscription(activeProjectId, isSubscribed, null);
+  }
+
+  function updateDetailSubscriptionState() {
+    const project = appData.projects.find(p => p.id === activeProjectId);
+    if (!project) return;
+    const isSubscribed = (project.subscribers || []).includes(currentUserEmail);
+    document.getElementById("projectDetailSubCheckbox").checked = isSubscribed;
+  }
+
+  /* ========== 專案管理邏輯 ========== */
+  function renderProjects() {
+    activeProjectId = null;
+    document.getElementById("viewProjects").style.display = "block";
+    document.getElementById("viewWorkOrders").style.display = "none";
+    document.getElementById("breadcrumb").innerHTML = `<span>專案列表</span>`;
+
+    const projectList = document.getElementById("projectList");
+    const noProjects = document.getElementById("noProjects");
+    projectList.innerHTML = "";
+
+    if (!appData.projects || appData.projects.length === 0) {
+      noProjects.style.display = "block";
+      return;
     }
+    noProjects.style.display = "none";
 
-    function saveLocalCacheOnly() {
-      localStorage.setItem("work_order_db", JSON.stringify(appData));
-    }
+    appData.projects.forEach(p => {
+      const total = p.workOrders.length;
+      const closed = p.workOrders.filter(w => w.status === "Closed").length;
+      const totalEstHours = p.workOrders.reduce((sum, w) => sum + (w.estHours || 0), 0);
+      const isSubscribed = (p.subscribers || []).includes(currentUserEmail);
 
-    function saveData() {
-      pushToSheets();
-    }
-
-    /* ========== 訂閱控制邏輯 ========== */
-    function toggleSubscription(projId, isSubscribed, event) {
-      if (event) event.stopPropagation();
-      if (!currentUserEmail) return;
-
-      const project = appData.projects.find(p => p.id === projId);
-      if (!project) return;
-
-      project.subscribers = project.subscribers || [];
-      const index = project.subscribers.indexOf(currentUserEmail);
-
-      if (isSubscribed && index === -1) {
-        project.subscribers.push(currentUserEmail);
-      } else if (!isSubscribed && index !== -1) {
-        project.subscribers.splice(index, 1);
-      }
-
-      saveData();
-      renderProjects();
-      if (activeProjectId === projId) {
-        updateDetailSubscriptionState();
-      }
-    }
-
-    function toggleProjectSubscriptionFromDetail(isSubscribed) {
-      if (!activeProjectId) return;
-      toggleSubscription(activeProjectId, isSubscribed, null);
-    }
-
-    function updateDetailSubscriptionState() {
-      const project = appData.projects.find(p => p.id === activeProjectId);
-      if (!project) return;
-      const isSubscribed = (project.subscribers || []).includes(currentUserEmail);
-      document.getElementById("projectDetailSubCheckbox").checked = isSubscribed;
-    }
-
-    /* ========== 資料標準化 ========== */
-    function normalizeTicket(t) {
-      let rawSubtasks = Array.isArray(t.subtasks) ? t.subtasks : [];
-      let subtasks = rawSubtasks.map((st, idx) => ({
-        id: st.id || ("st-" + idx + "-" + Date.now()),
-        text: st.text || (typeof st === "string" ? st : ""),
-        completed: Boolean(st.completed)
-      }));
-
-      return {
-        id: t.id || "WO-000",
-        category: t.category || "Execution",
-        task: t.task || "",
-        subtasks: subtasks,
-        assignee: t.assignee || "",
-        estHours: parseFloat(t.estHours) || 0,
-        actHours: parseFloat(t.actHours) || 0,
-        deadline: t.deadline || "",
-        status: t.status || "Open",
-        createdAt: t.createdAt || new Date().toISOString()
+      const div = document.createElement("div");
+      div.className = "project-card";
+      div.onclick = (e) => {
+        if (!e.target.classList.contains('btn-delete') && e.target.type !== 'checkbox' && !e.target.classList.contains('sub-checkbox-label')) {
+          enterProject(p.id);
+        }
       };
-    }
-
-    function normalizeData(data) {
-      if (!data) return { schemaVersion: "6.0.0", lastUpdated: new Date().toISOString(), projects: [] };
-      if (Array.isArray(data.projects)) {
-        data.projects.forEach(p => {
-          p.subscribers = Array.isArray(p.subscribers) ? p.subscribers : [];
-          p.workOrders = Array.isArray(p.workOrders) ? p.workOrders.map(normalizeTicket) : [];
-        });
-        return data;
-      }
-      return { schemaVersion: "6.0.0", lastUpdated: new Date().toISOString(), projects: [] };
-    }
-
-    /* ========== 專案管理邏輯 ========== */
-    function renderProjects() {
-      activeProjectId = null;
-      document.getElementById("viewProjects").style.display = "block";
-      document.getElementById("viewWorkOrders").style.display = "none";
-      document.getElementById("breadcrumb").innerHTML = `<span>專案列表</span>`;
-
-      const projectList = document.getElementById("projectList");
-      const noProjects = document.getElementById("noProjects");
-      projectList.innerHTML = "";
-
-      if (!appData.projects || appData.projects.length === 0) {
-        noProjects.style.display = "block";
-        return;
-      }
-      noProjects.style.display = "none";
-
-      appData.projects.forEach(p => {
-        const total = p.workOrders.length;
-        const closed = p.workOrders.filter(w => w.status === "Closed").length;
-        const totalEstHours = p.workOrders.reduce((sum, w) => sum + (w.estHours || 0), 0);
-        const isSubscribed = (p.subscribers || []).includes(currentUserEmail);
-
-        const div = document.createElement("div");
-        div.className = "project-card";
-        div.onclick = (e) => {
-          if (!e.target.classList.contains('btn-delete') && e.target.type !== 'checkbox' && !e.target.classList.contains('sub-checkbox-label')) {
-            enterProject(p.id);
-          }
-        };
-        div.innerHTML = `
+      div.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <h3>${escapeHtml(p.name)}</h3>
           <button class="btn-delete" onclick="deleteProject('${p.id}')">刪除</button>
         </div>
         <p class="project-desc">${escapeHtml(p.description)}</p>
         <div class="project-sub-bar">
-          <label class="sub-checkbox-label">
+          <label class="sub-checkbox-label" onclick="event.stopPropagation()">
             <input type="checkbox" ${isSubscribed ? 'checked' : ''} onchange="toggleSubscription('${p.id}', this.checked, event)">
             <span>${isSubscribed ? '🔔 已訂閱變更通知' : '🔕 預設未訂閱'}</span>
           </label>
-          <span style="color:var(--text-light); font-size:11px;">訂閱人數: ${(p.subscribers || []).length}</span>
+          <span style="color:var(--text-light); font-size:11px;">已訂閱: ${(p.subscribers || []).length} 人</span>
         </div>
         <div class="project-stats">
-          <span>進度: ${closed}/${total} (${total > 0 ? Math.round((closed / total) * 100) : 0}%)</span>
+          <span>進度: ${closed}/${total} (${total > 0 ? Math.round((closed/total)*100) : 0}%)</span>
           <span>預估工時: ${totalEstHours}h</span>
         </div>
       `;
-        projectList.appendChild(div);
-      });
-    }
+      projectList.appendChild(div);
+    });
+  }
 
-    function handleCreateProject(e) {
-      e.preventDefault();
-      const newProj = {
-        id: "P-" + Date.now().toString().slice(-5),
-        name: document.getElementById("newProjectName").value.trim(),
-        description: document.getElementById("newProjectDesc").value.trim(),
-        subscribers: [], // 預設不訂閱
-        createdAt: new Date().toISOString(),
-        workOrders: []
-      };
+  function handleCreateProject(e) {
+    e.preventDefault();
+    const newProj = {
+      id: "P-" + Date.now().toString().slice(-5),
+      name: document.getElementById("newProjectName").value.trim(),
+      description: document.getElementById("newProjectDesc").value.trim(),
+      subscribers: [],
+      createdAt: new Date().toISOString(),
+      workOrders: []
+    };
 
-      appData.projects.push(newProj);
+    appData.projects.push(newProj);
+    saveData();
+    renderProjects();
+    document.getElementById("projectForm").reset();
+  }
+
+  function deleteProject(projId) {
+    if (confirm("確定要刪除整個專案及其所有工單嗎？將同步更新至 Google 試算表。")) {
+      appData.projects = appData.projects.filter(p => p.id !== projId);
       saveData();
       renderProjects();
-      document.getElementById("projectForm").reset();
+    }
+  }
+
+  function enterProject(projId) {
+    activeProjectId = projId;
+    const project = appData.projects.find(p => p.id === projId);
+    if (!project) return;
+
+    // 進入專案後默認點擊訂閱
+    project.subscribers = project.subscribers || [];
+    if (!project.subscribers.includes(currentUserEmail)) {
+      project.subscribers.push(currentUserEmail);
+      saveData();
     }
 
-    function deleteProject(projId) {
-      if (confirm("確定要刪除整個專案及其所有工單嗎？將同步更新至 Google 試算表。")) {
-        appData.projects = appData.projects.filter(p => p.id !== projId);
-        saveData();
-        renderProjects();
-      }
-    }
-
-    function enterProject(projId) {
-      activeProjectId = projId;
-      const project = appData.projects.find(p => p.id === projId);
-      if (!project) return;
-
-      // 依需求：進入專案後默認點擊訂閱
-      project.subscribers = project.subscribers || [];
-      if (currentUserEmail && !project.subscribers.includes(currentUserEmail)) {
-        project.subscribers.push(currentUserEmail);
-        saveData();
-      }
-
-      document.getElementById("viewProjects").style.display = "none";
-      document.getElementById("viewWorkOrders").style.display = "block";
-      document.getElementById("breadcrumb").innerHTML = `
+    document.getElementById("viewProjects").style.display = "none";
+    document.getElementById("viewWorkOrders").style.display = "block";
+    document.getElementById("breadcrumb").innerHTML = `
       <span class="nav-link" onclick="renderProjects()">專案列表</span>
       <span>/</span>
       <span style="color: var(--primary); font-weight: 600;">${escapeHtml(project.name)}</span>
     `;
 
-      updateDetailSubscriptionState();
-      resetSubtaskForm();
-      updateNextWONumber();
-      renderTickets();
-      updateMetrics();
-    }
+    updateDetailSubscriptionState();
+    resetSubtaskForm();
+    updateNextWONumber();
+    renderTickets();
+    updateMetrics();
+  }
 
-    /* ========== 子任務表單 ========== */
-    function addSubtaskRow() {
-      const container = document.getElementById("subtaskInputs");
-      const div = document.createElement("div");
-      div.className = "dynamic-subtask-row";
-      div.innerHTML = `
+  /* ========== 子任務表單 ========== */
+  function addSubtaskRow() {
+    const container = document.getElementById("subtaskInputs");
+    const div = document.createElement("div");
+    div.className = "dynamic-subtask-row";
+    div.innerHTML = `
       <input type="text" class="subtask-field" placeholder="細節步驟或驗收項目...">
       <button type="button" class="btn-delete" onclick="this.parentElement.remove()">✕ 移除</button>
     `;
-      container.appendChild(div);
-    }
+    container.appendChild(div);
+  }
 
-    function resetSubtaskForm() {
-      const container = document.getElementById("subtaskInputs");
-      container.innerHTML = `
+  function resetSubtaskForm() {
+    const container = document.getElementById("subtaskInputs");
+    container.innerHTML = `
       <div class="dynamic-subtask-row">
         <input type="text" class="subtask-field" placeholder="細節步驟或驗收項目 1 (選填)">
         <button type="button" class="secondary" onclick="addSubtaskRow()">＋ 新增細項</button>
       </div>
     `;
-    }
+  }
 
-    /* ========== 工單管理邏輯 ========== */
-    function updateNextWONumber() {
-      const project = appData.projects.find(p => p.id === activeProjectId);
-      if (!project) return;
-      const count = project.workOrders.length + 1;
-      document.getElementById("woNumber").value = `WO-${String(count).padStart(3, '0')}`;
-    }
+  /* ========== 工單管理邏輯 ========== */
+  function updateNextWONumber() {
+    const project = appData.projects.find(p => p.id === activeProjectId);
+    if (!project) return;
+    const count = project.workOrders.length + 1;
+    document.getElementById("woNumber").value = `WO-${String(count).padStart(3, '0')}`;
+  }
 
-    function handleCreateTicket(e) {
-      e.preventDefault();
-      const project = appData.projects.find(p => p.id === activeProjectId);
-      if (!project) return;
+  function handleCreateTicket(e) {
+    e.preventDefault();
+    const project = appData.projects.find(p => p.id === activeProjectId);
+    if (!project) return;
 
-      const subtaskInputs = document.querySelectorAll(".subtask-field");
-      const subtasks = [];
-      subtaskInputs.forEach((input, index) => {
-        const text = input.value.trim();
-        if (text) {
-          subtasks.push({
-            id: "ST-" + Date.now().toString().slice(-4) + "-" + index,
-            text: text,
-            completed: false
-          });
-        }
-      });
+    const subtaskInputs = document.querySelectorAll(".subtask-field");
+    const subtasks = [];
+    subtaskInputs.forEach((input, index) => {
+      const text = input.value.trim();
+      if (text) {
+        subtasks.push({
+          id: "ST-" + Date.now().toString().slice(-4) + "-" + index,
+          text: text,
+          completed: false
+        });
+      }
+    });
 
-      const newTicket = {
-        id: document.getElementById("woNumber").value,
-        category: document.getElementById("category").value,
-        task: document.getElementById("taskDesc").value.trim(),
-        subtasks: subtasks,
-        assignee: document.getElementById("assignee").value.trim(),
-        estHours: parseFloat(document.getElementById("estHours").value) || 0,
-        actHours: 0,
-        deadline: document.getElementById("deadline").value,
-        status: document.getElementById("status").value,
-        createdAt: new Date().toISOString()
-      };
+    const newTicket = {
+      id: document.getElementById("woNumber").value,
+      category: document.getElementById("category").value,
+      task: document.getElementById("taskDesc").value.trim(),
+      subtasks: subtasks,
+      assignee: document.getElementById("assignee").value.trim(),
+      estHours: parseFloat(document.getElementById("estHours").value) || 0,
+      actHours: 0,
+      deadline: document.getElementById("deadline").value,
+      status: document.getElementById("status").value,
+      createdAt: new Date().toISOString()
+    };
 
-      project.workOrders.unshift(newTicket);
+    project.workOrders.unshift(newTicket);
+    saveData();
+    renderTickets();
+    updateMetrics();
+
+    document.getElementById("ticketForm").reset();
+    resetSubtaskForm();
+    updateNextWONumber();
+  }
+
+  function toggleSubtask(ticketId, subtaskId, isChecked) {
+    const project = appData.projects.find(p => p.id === activeProjectId);
+    if (!project) return;
+    const t = project.workOrders.find(w => w.id === ticketId);
+    if (!t || !t.subtasks) return;
+
+    const st = t.subtasks.find(s => s.id === subtaskId);
+    if (st) {
+      st.completed = isChecked;
+      if (t.subtasks.every(s => s.completed) && t.status === "In Progress") {
+        t.status = "Review";
+      }
       saveData();
       renderTickets();
       updateMetrics();
+    }
+  }
 
-      document.getElementById("ticketForm").reset();
-      resetSubtaskForm();
+  function updateTicketStatus(ticketId, newStatus) {
+    const project = appData.projects.find(p => p.id === activeProjectId);
+    if (!project) return;
+    const t = project.workOrders.find(w => w.id === ticketId);
+    if (t) {
+      t.status = newStatus;
+      if (newStatus === "Closed" && t.subtasks) {
+        t.subtasks.forEach(st => st.completed = true);
+      }
+      saveData();
+      updateMetrics();
+      renderTickets();
+    }
+  }
+
+  function updateActualHours(ticketId, hours) {
+    const project = appData.projects.find(p => p.id === activeProjectId);
+    if (!project) return;
+    const t = project.workOrders.find(w => w.id === ticketId);
+    if (t) {
+      t.actHours = parseFloat(hours) || 0;
+      saveData();
+      updateMetrics();
+    }
+  }
+
+  function deleteTicket(ticketId) {
+    const project = appData.projects.find(p => p.id === activeProjectId);
+    if (!project) return;
+    if (confirm(`確定要作廢工單 ${ticketId} 嗎？`)) {
+      project.workOrders = project.workOrders.filter(w => w.id !== ticketId);
+      saveData();
+      renderTickets();
+      updateMetrics();
       updateNextWONumber();
     }
+  }
 
-    function toggleSubtask(ticketId, subtaskId, isChecked) {
-      const project = appData.projects.find(p => p.id === activeProjectId);
-      if (!project) return;
-      const t = project.workOrders.find(w => w.id === ticketId);
-      if (!t || !t.subtasks) return;
-
-      const st = t.subtasks.find(s => s.id === subtaskId);
-      if (st) {
-        st.completed = isChecked;
-        if (t.subtasks.every(s => s.completed) && t.status === "In Progress") {
-          t.status = "Review";
-        }
-        saveData();
-        renderTickets();
-        updateMetrics();
-      }
+  function getCategoryBadge(category) {
+    switch (category) {
+      case 'Research': return `<span class="badge badge-research">調研分析</span>`;
+      case 'Execution': return `<span class="badge badge-execution">核心產出</span>`;
+      case 'Visuals': return `<span class="badge badge-visuals">簡報視覺</span>`;
+      case 'Review': return `<span class="badge badge-review">審查演練</span>`;
+      case 'Coordination': return `<span class="badge badge-coordination">行政協調</span>`;
+      default: return `<span class="badge badge-execution">核心產出</span>`;
     }
+  }
 
-    function updateTicketStatus(ticketId, newStatus) {
-      const project = appData.projects.find(p => p.id === activeProjectId);
-      if (!project) return;
-      const t = project.workOrders.find(w => w.id === ticketId);
-      if (t) {
-        t.status = newStatus;
-        if (newStatus === "Closed" && t.subtasks) {
-          t.subtasks.forEach(st => st.completed = true);
-        }
-        saveData();
-        updateMetrics();
-        renderTickets();
-      }
+  function renderTickets() {
+    const project = appData.projects.find(p => p.id === activeProjectId);
+    if (!project) return;
+
+    const tbody = document.getElementById("ticketTableBody");
+    const noTickets = document.getElementById("noTickets");
+    tbody.innerHTML = "";
+
+    if (project.workOrders.length === 0) {
+      noTickets.style.display = "block";
+      return;
     }
+    noTickets.style.display = "none";
 
-    function updateActualHours(ticketId, hours) {
-      const project = appData.projects.find(p => p.id === activeProjectId);
-      if (!project) return;
-      const t = project.workOrders.find(w => w.id === ticketId);
-      if (t) {
-        t.actHours = parseFloat(hours) || 0;
-        saveData();
-        updateMetrics();
-      }
-    }
+    project.workOrders.forEach(t => {
+      const totalSt = (t.subtasks || []).length;
+      const completedSt = (t.subtasks || []).filter(s => s.completed).length;
+      const progressPercent = totalSt > 0 ? Math.round((completedSt / totalSt) * 100) : (t.status === "Closed" ? 100 : 0);
 
-    function deleteTicket(ticketId) {
-      const project = appData.projects.find(p => p.id === activeProjectId);
-      if (!project) return;
-      if (confirm(`確定要作廢工單 ${ticketId} 嗎？`)) {
-        project.workOrders = project.workOrders.filter(w => w.id !== ticketId);
-        saveData();
-        renderTickets();
-        updateMetrics();
-        updateNextWONumber();
-      }
-    }
-
-    function getCategoryBadge(category) {
-      switch (category) {
-        case 'Research': return `<span class="badge badge-research">調研分析</span>`;
-        case 'Execution': return `<span class="badge badge-execution">核心產出</span>`;
-        case 'Visuals': return `<span class="badge badge-visuals">簡報視覺</span>`;
-        case 'Review': return `<span class="badge badge-review">審查演練</span>`;
-        case 'Coordination': return `<span class="badge badge-coordination">行政協調</span>`;
-        default: return `<span class="badge badge-execution">核心產出</span>`;
-      }
-    }
-
-    function renderTickets() {
-      const project = appData.projects.find(p => p.id === activeProjectId);
-      if (!project) return;
-
-      const tbody = document.getElementById("ticketTableBody");
-      const noTickets = document.getElementById("noTickets");
-      tbody.innerHTML = "";
-
-      if (project.workOrders.length === 0) {
-        noTickets.style.display = "block";
-        return;
-      }
-      noTickets.style.display = "none";
-
-      project.workOrders.forEach(t => {
-        const totalSt = (t.subtasks || []).length;
-        const completedSt = (t.subtasks || []).filter(s => s.completed).length;
-        const progressPercent = totalSt > 0 ? Math.round((completedSt / totalSt) * 100) : (t.status === "Closed" ? 100 : 0);
-
-        let subtasksHtml = "";
-        if (totalSt > 0) {
-          subtasksHtml = `
+      let subtasksHtml = "";
+      if (totalSt > 0) {
+        subtasksHtml = `
           <div style="margin-top: 6px;">
             <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-light);">
               <span>細節進度 (${completedSt}/${totalSt})</span>
@@ -1177,10 +631,10 @@
             </ul>
           </div>
         `;
-        }
+      }
 
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
         <td class="wo-id">${t.id}</td>
         <td>${getCategoryBadge(t.category)}</td>
         <td style="max-width: 320px;">
@@ -1207,62 +661,51 @@
           <button class="btn-delete" onclick="deleteTicket('${t.id}')">刪除</button>
         </td>
       `;
-        tbody.appendChild(tr);
-      });
-    }
+      tbody.appendChild(tr);
+    });
+  }
 
-    function updateMetrics() {
-      const project = appData.projects.find(p => p.id === activeProjectId);
-      if (!project) return;
-      const wos = project.workOrders;
+  function updateMetrics() {
+    const project = appData.projects.find(p => p.id === activeProjectId);
+    if (!project) return;
+    const wos = project.workOrders;
 
-      document.getElementById("metricTotal").innerText = wos.length;
-      document.getElementById("metricOpen").innerText = wos.filter(w => w.status === "Open").length;
-      document.getElementById("metricProgress").innerText = wos.filter(w => w.status === "In Progress").length;
-      document.getElementById("metricReview").innerText = wos.filter(w => w.status === "Review").length;
-      document.getElementById("metricDone").innerText = wos.filter(w => w.status === "Closed").length;
+    document.getElementById("metricTotal").innerText = wos.length;
+    document.getElementById("metricOpen").innerText = wos.filter(w => w.status === "Open").length;
+    document.getElementById("metricProgress").innerText = wos.filter(w => w.status === "In Progress").length;
+    document.getElementById("metricReview").innerText = wos.filter(w => w.status === "Review").length;
+    document.getElementById("metricDone").innerText = wos.filter(w => w.status === "Closed").length;
 
-      const totalEst = wos.reduce((sum, w) => sum + (w.estHours || 0), 0);
-      const totalAct = wos.reduce((sum, w) => sum + (w.actHours || 0), 0);
-      const ratio = totalEst > 0 ? Math.round((totalAct / totalEst) * 100) : 0;
+    const totalEst = wos.reduce((sum, w) => sum + (w.estHours || 0), 0);
+    const totalAct = wos.reduce((sum, w) => sum + (w.actHours || 0), 0);
+    const ratio = totalEst > 0 ? Math.round((totalAct / totalEst) * 100) : 0;
 
-      let totalSubtasks = 0;
-      let completedSubtasks = 0;
-      wos.forEach(w => {
-        if (w.subtasks && w.subtasks.length > 0) {
-          totalSubtasks += w.subtasks.length;
-          completedSubtasks += w.subtasks.filter(s => s.completed).length;
-        }
-      });
-      const subtaskRate = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : (wos.length > 0 && wos.every(w => w.status === "Closed") ? 100 : 0);
+    let totalSubtasks = 0;
+    let completedSubtasks = 0;
+    wos.forEach(w => {
+      if (w.subtasks && w.subtasks.length > 0) {
+        totalSubtasks += w.subtasks.length;
+        completedSubtasks += w.subtasks.filter(s => s.completed).length;
+      }
+    });
+    const subtaskRate = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : (wos.length > 0 && wos.every(w => w.status === "Closed") ? 100 : 0);
 
-      document.getElementById("metricEstHours").innerText = `${totalEst} h`;
-      document.getElementById("metricActHours").innerText = `${totalAct} h`;
-      document.getElementById("metricHourRatio").innerText = `${ratio}%`;
-      document.getElementById("metricSubtaskRate").innerText = `${subtaskRate}%`;
-    }
+    document.getElementById("metricEstHours").innerText = `${totalEst} h`;
+    document.getElementById("metricActHours").innerText = `${totalAct} h`;
+    document.getElementById("metricHourRatio").innerText = `${ratio}%`;
+    document.getElementById("metricSubtaskRate").innerText = `${subtaskRate}%`;
+  }
 
-    function isOverdue(dateStr, status) {
-      if (status === "Closed" || !dateStr) return false;
-      const today = new Date().toISOString().split('T')[0];
-      return dateStr < today;
-    }
+  function isOverdue(dateStr, status) {
+    if (status === "Closed" || !dateStr) return false;
+    const today = new Date().toISOString().split('T')[0];
+    return dateStr < today;
+  }
 
-    function exportToJSON() {
-      const blob = new Blob([JSON.stringify(appData, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const dlAnchor = document.createElement('a');
-      dlAnchor.href = url;
-      dlAnchor.download = `report_workorders_backup.json`;
-      dlAnchor.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function escapeHtml(str) {
-      return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-  </script>
+  function escapeHtml(str) {
+    return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+</script>
 
 </body>
-
 </html>
