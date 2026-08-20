@@ -33,8 +33,8 @@
     button.primary:hover { background: #1d4ed8; }
     button.secondary { background: #f1f5f9; border-color: var(--border); }
 
-    .user-profile { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 4px 12px; background: #e2e8f0; border-radius: 20px; }
-    .btn-switch-user { border: none; background: transparent; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0 4px; text-decoration: underline; }
+    .user-badge { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 5px 12px; background: #e2e8f0; border-radius: 20px; }
+    .btn-link-action { border: none; background: transparent; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0; text-decoration: underline; font-weight: normal; }
 
     .sync-status { font-size: 12px; padding: 5px 10px; border-radius: 4px; background: #e2e8f0; color: var(--text-light); font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
     .sync-status.online { background: #d1fae5; color: #065f46; }
@@ -59,6 +59,9 @@
     .project-card h3 { font-size: 16px; color: var(--primary); margin-bottom: 8px; }
     .project-desc { font-size: 13px; color: var(--text-light); margin-bottom: 12px; min-height: 38px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     
+    .project-sub-bar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px dashed var(--border); font-size: 12px; }
+    .sub-checkbox-label { display: flex; align-items: center; gap: 6px; font-weight: 600; cursor: pointer; color: var(--accent); }
+    .sub-checkbox-label input[type="checkbox"] { width: auto; cursor: pointer; }
     .project-stats { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--text); padding-top: 4px; }
 
     .metrics-section { margin-bottom: 16px; }
@@ -103,14 +106,18 @@
   <header>
     <div>
       <h1>📋 團隊報告與專案工單系統</h1>
-      <p style="font-size: 13px; color: var(--text-light); margin-top: 4px;">團隊通行密碼安全保護版</p>
+      <p style="font-size: 13px; color: var(--text-light); margin-top: 4px;">密碼保護與通用信箱訂閱支援</p>
     </div>
     <div class="btn-group">
-      <div class="user-profile">
-        <span id="userProfileDisplay">🔑 密碼已儲存</span>
-        <button class="btn-switch-user" onclick="resetAuth()">更換密碼</button>
+      <div class="user-badge">
+        <span id="userEmailDisplay">📧 郵箱：未設定</span>
+        <button class="btn-link-action" onclick="changeUserEmail()">設定</button>
       </div>
-      <span class="sync-status" id="cloudStatusIndicator">🔄 同步中...</span>
+      <div class="user-badge" style="background:#f1f5f9;">
+        <span>🔑 授權：已鎖定</span>
+        <button class="btn-link-action" onclick="changeAuthPassword()">重設密碼</button>
+      </div>
+      <span class="sync-status" id="cloudStatusIndicator">🔄 連線中...</span>
       <button onclick="fetchProjectData(true)">🔄 手動同步</button>
     </div>
   </header>
@@ -150,6 +157,10 @@
     <div class="card">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <h2 style="margin-bottom: 0;">📊 團隊進度與工作量統計</h2>
+        <label class="sub-checkbox-label" style="font-size: 13px;">
+          <input type="checkbox" id="projectDetailSubCheckbox" onchange="toggleProjectSubscriptionFromDetail(this.checked)">
+          🔔 訂閱每日 06:00 變更通知 (發送至當前郵箱)
+        </label>
       </div>
       <div class="metrics-section">
         <div class="metrics-header">工單狀態統計</div>
@@ -252,18 +263,42 @@
   const GAS_API_URL = "https://script.google.com/macros/s/AKfycbxoPG28Nf_gL_zM_sB1zTQxC5V1mzHmIRdue0TcVH3wVSV5vSsY83RpY9Fe82j2YtUyIw/exec";
 
   let teamPassword = localStorage.getItem("team_sys_auth_key") || "";
+  let userEmail = localStorage.getItem("team_sub_email") || "";
 
-  function ensureAuth() {
+  function ensureCredentials() {
     if (!teamPassword) {
-      const input = prompt("請輸入系統通行密碼：");
-      if (input) {
-        teamPassword = input.trim();
+      const p = prompt("請輸入系統通行密碼：");
+      if (p) {
+        teamPassword = p.trim();
         localStorage.setItem("team_sys_auth_key", teamPassword);
       }
     }
+    if (!userEmail) {
+      const m = prompt("請輸入您的通知信箱 (Gmail / Outlook / 公司郵箱皆可)：", "kecy200611@gmail.com");
+      if (m) {
+        userEmail = m.trim().toLowerCase();
+        localStorage.setItem("team_sub_email", userEmail);
+      }
+    }
+    updateHeaderUI();
   }
 
-  function resetAuth() {
+  function updateHeaderUI() {
+    document.getElementById("userEmailDisplay").innerText = userEmail ? `📧 ${userEmail}` : "📧 未設定信箱";
+  }
+
+  function changeUserEmail() {
+    const input = prompt("請輸入新的通知信箱 (供訂閱郵件通知用)：", userEmail);
+    if (input) {
+      userEmail = input.trim().toLowerCase();
+      localStorage.setItem("team_sub_email", userEmail);
+      updateHeaderUI();
+      if (activeProjectId) updateDetailSubscriptionState();
+      else renderProjects();
+    }
+  }
+
+  function changeAuthPassword() {
     const input = prompt("請輸入新的系統通行密碼：");
     if (input) {
       teamPassword = input.trim();
@@ -281,16 +316,16 @@
   let activeProjectId = null;
 
   window.onload = () => {
-    ensureAuth();
+    ensureCredentials();
     if (teamPassword) {
       fetchProjectData(false);
       setInterval(() => fetchProjectData(false), 45000);
     } else {
-      updateSyncIndicator("offline", "❌ 未輸入密碼");
+      updateSyncIndicator("offline", "❌ 未授權密碼");
     }
   };
 
-  /* ========== 遠端 API 資料串接 ========== */
+  /* ========== 遠端 API 串接 ========== */
   async function fetchProjectData(showFeedback = false) {
     if (!teamPassword) return;
     updateSyncIndicator("syncing", "同步中...");
@@ -315,6 +350,7 @@
         if (activeProjectId) {
           renderTickets();
           updateMetrics();
+          updateDetailSubscriptionState();
         } else {
           renderProjects();
         }
@@ -323,7 +359,7 @@
       }
     } catch (err) {
       console.error(err);
-      updateSyncIndicator("offline", "❌ 連線失敗: 請確認後端權限為 Anyone");
+      updateSyncIndicator("offline", "❌ 連線失敗: 請確認 GAS 權限設為 Anyone");
     }
   }
 
@@ -368,6 +404,46 @@
     pushProjectData();
   }
 
+  /* ========== 郵件訂閱邏輯 ========== */
+  function toggleSubscription(projId, isSubscribed, event) {
+    if (event) event.stopPropagation();
+    if (!userEmail) {
+      alert("請先設定您的通知信箱！");
+      changeUserEmail();
+      if (!userEmail) return;
+    }
+
+    const project = appData.projects.find(p => p.id === projId);
+    if (!project) return;
+
+    project.subscribers = project.subscribers || [];
+    const index = project.subscribers.indexOf(userEmail);
+
+    if (isSubscribed && index === -1) {
+      project.subscribers.push(userEmail);
+    } else if (!isSubscribed && index !== -1) {
+      project.subscribers.splice(index, 1);
+    }
+
+    saveData();
+    renderProjects();
+    if (activeProjectId === projId) {
+      updateDetailSubscriptionState();
+    }
+  }
+
+  function toggleProjectSubscriptionFromDetail(isSubscribed) {
+    if (!activeProjectId) return;
+    toggleSubscription(activeProjectId, isSubscribed, null);
+  }
+
+  function updateDetailSubscriptionState() {
+    const project = appData.projects.find(p => p.id === activeProjectId);
+    if (!project) return;
+    const isSubscribed = userEmail ? (project.subscribers || []).includes(userEmail) : false;
+    document.getElementById("projectDetailSubCheckbox").checked = isSubscribed;
+  }
+
   /* ========== 專案管理邏輯 ========== */
   function renderProjects() {
     activeProjectId = null;
@@ -389,11 +465,12 @@
       const total = (p.workOrders || []).length;
       const closed = (p.workOrders || []).filter(w => w.status === "Closed").length;
       const totalEstHours = (p.workOrders || []).reduce((sum, w) => sum + (w.estHours || 0), 0);
+      const isSubscribed = userEmail ? (p.subscribers || []).includes(userEmail) : false;
 
       const div = document.createElement("div");
       div.className = "project-card";
       div.onclick = (e) => {
-        if (!e.target.classList.contains('btn-delete')) {
+        if (!e.target.classList.contains('btn-delete') && e.target.type !== 'checkbox' && !e.target.classList.contains('sub-checkbox-label')) {
           enterProject(p.id);
         }
       };
@@ -403,6 +480,13 @@
           <button class="btn-delete" onclick="deleteProject('${p.id}')">刪除</button>
         </div>
         <p class="project-desc">${escapeHtml(p.description)}</p>
+        <div class="project-sub-bar">
+          <label class="sub-checkbox-label" onclick="event.stopPropagation()">
+            <input type="checkbox" ${isSubscribed ? 'checked' : ''} onchange="toggleSubscription('${p.id}', this.checked, event)">
+            <span>${isSubscribed ? '🔔 已訂閱通知' : '🔕 預設未訂閱'}</span>
+          </label>
+          <span style="color:var(--text-light); font-size:11px;">已訂閱: ${(p.subscribers || []).length} 人</span>
+        </div>
         <div class="project-stats">
           <span>進度: ${closed}/${total} (${total > 0 ? Math.round((closed/total)*100) : 0}%)</span>
           <span>預估工時: ${totalEstHours}h</span>
@@ -418,7 +502,7 @@
       id: "P-" + Date.now().toString().slice(-5),
       name: document.getElementById("newProjectName").value.trim(),
       description: document.getElementById("newProjectDesc").value.trim(),
-      subscribers: [],
+      subscribers: userEmail ? [userEmail] : [],
       createdAt: new Date().toISOString(),
       workOrders: []
     };
@@ -450,6 +534,7 @@
       <span style="color: var(--primary); font-weight: 600;">${escapeHtml(project.name)}</span>
     `;
 
+    updateDetailSubscriptionState();
     resetSubtaskForm();
     updateNextWONumber();
     renderTickets();
@@ -683,7 +768,7 @@
 
     const totalEst = wos.reduce((sum, w) => sum + (w.estHours || 0), 0);
     const totalAct = wos.reduce((sum, w) => sum + (w.actHours || 0), 0);
-    const ratio = totalEst > 0 ? Math.round((totalAct / totalEst) * 100) : 0;
+    const ratio = totalEst > 0 ? Math.round((totalAct / totalEst) ? (totalAct / totalEst)*100 : 0) : 0;
 
     let totalSubtasks = 0;
     let completedSubtasks = 0;
