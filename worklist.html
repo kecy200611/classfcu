@@ -206,6 +206,7 @@
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
         <h2 style="margin-bottom:0;">📝 派發新工單與細節拆解</h2>
+        <button type="button" class="secondary" onclick="applyStandardReportTemplate()">⚡ 套用標準報告範本</button>
       </div>
       <form id="ticketForm" onsubmit="handleCreateTicket(event)">
         <div class="form-grid">
@@ -258,7 +259,7 @@
       </form>
     </div>
 
-    <!-- 視角切換 (清單 / 看板) -->
+    <!-- 視角切換 -->
     <div class="view-tabs">
       <button class="view-tab-btn active" id="tabTableBtn" onclick="switchTicketView('table')">📑 清單列表視圖</button>
       <button class="view-tab-btn" id="tabKanbanBtn" onclick="switchTicketView('kanban')">📌 拖拉看板視圖</button>
@@ -335,6 +336,7 @@
   let isSyncing = false; 
   let currentTicketView = "table";
   let activeTimers = {};
+  let saveTimeout = null;
 
   function ensureCredentials() {
     if (!teamPassword) {
@@ -390,27 +392,50 @@
     ensureCredentials();
     if (teamPassword) {
       fetchProjectData(false);
+      // 25秒輕量版本輪詢
       setInterval(() => {
         const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
         if (!isSyncing && activeTag !== "input" && activeTag !== "textarea") {
-          fetchProjectData(false);
+          smartPollData();
         }
-      }, 15000);
+      }, 25000);
     } else {
       updateSyncIndicator("offline", "❌ 未授權密碼");
     }
   };
 
   /* ========== 遠端 API 串接 ========== */
+  async function smartPollData() {
+    if (!teamPassword || isSyncing) return;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(`${GAS_API_URL}?authKey=${encodeURIComponent(teamPassword)}&checkOnly=true`, {
+        method: "GET",
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      const data = await res.json();
+      if (data && data.status === "success" && data.lastUpdated !== appData.lastUpdated) {
+        fetchProjectData(false);
+      }
+    } catch(e) {}
+  }
+
   async function fetchProjectData(showFeedback = false) {
     if (!teamPassword || isSyncing) return;
     updateSyncIndicator("syncing", "同步中...");
     
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
       const res = await fetch(`${GAS_API_URL}?authKey=${encodeURIComponent(teamPassword)}`, {
         method: "GET",
-        mode: "cors"
+        mode: "cors",
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       const data = await res.json();
 
       if (data.status === "unauthorized") {
@@ -435,8 +460,7 @@
         if (showFeedback) alert("✅ 已成功同步最新資料！");
       }
     } catch (err) {
-      console.error(err);
-      updateSyncIndicator("offline", "❌ 連線失敗: 請確認 GAS 權限設為 Anyone");
+      updateSyncIndicator("offline", "❌ 連線不穩：請檢查網路或稍候重試");
     }
   }
 
@@ -446,6 +470,9 @@
     updateSyncIndicator("syncing", "正在寫入...");
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
       const payload = {
         authKey: teamPassword,
         clientBaseUpdated: appData.lastUpdated,
@@ -455,11 +482,11 @@
       const res = await fetch(GAS_API_URL, {
         method: "POST",
         mode: "cors",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8"
-        },
-        body: JSON.stringify(payload)
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       const result = await res.json();
 
       if (result.status === "success") {
@@ -467,15 +494,14 @@
         updateSyncIndicator("online", "🟢 已同步至試算表");
       } else if (result.status === "conflict") {
         updateSyncIndicator("offline", "⚠️ 資料版本衝突");
-        alert("⚠️ 另一位成員已先行更新資料！系統將為您載入最新內容，請稍候重試操作。");
+        alert("⚠️ 另一位成員已先行更新資料！系統將為您載入最新內容。");
         isSyncing = false;
         await fetchProjectData(false);
       } else {
         updateSyncIndicator("offline", "❌ " + (result.message || "寫入失敗"));
       }
     } catch (err) {
-      console.error(err);
-      updateSyncIndicator("offline", "❌ 寫入失敗: 網路異常");
+      updateSyncIndicator("offline", "❌ 寫入超時：請點擊手動同步重試");
     } finally {
       isSyncing = false;
     }
@@ -487,8 +513,12 @@
     el.innerText = text;
   }
 
+  // 600ms 防抖儲存，避免連續打勾產生請求撞車
   function saveData() {
-    pushProjectData();
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+      pushProjectData();
+    }, 600);
   }
 
   /* ========== 郵件訂閱邏輯 ========== */
@@ -774,10 +804,10 @@
         startTime: Date.now(),
         intervalId: setInterval(() => {
           const m = Math.floor((Date.now() - activeTimers[ticketId].startTime) / 60000);
-          btn.innerText = `⏹️ 計時中 (${m}m)`;
+          btn.innerText = `⏹️ (${m}m)`;
         }, 10000)
       };
-      btn.innerText = "⏹️ 計時中 (0m)";
+      btn.innerText = "⏹️ (0m)";
       btn.classList.add("timer-active");
     }
   }
@@ -785,7 +815,7 @@
   /* ========== 子任務表單 ========== */
   function addSubtaskRow() {
     const container = document.getElementById("subtaskInputs");
-    const div = document.createElement("dynamic-subtask-row");
+    const div = document.createElement("div");
     div.className = "dynamic-subtask-row";
     div.innerHTML = `
       <input type="text" class="subtask-field" placeholder="細節步驟或驗收項目...">
