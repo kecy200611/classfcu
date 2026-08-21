@@ -813,6 +813,30 @@
   function escapeHtml(str) {
     return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
+
+  // 在前端工單清單與看板加上工單訂閱邏輯
+function toggleTicketSubscription(ticketId, isSubscribed) {
+  if (!userEmail) {
+    alert("請先設定您的通知信箱！");
+    changeUserEmail();
+    if (!userEmail) return;
+  }
+  const project = appData.projects.find(p => p.id === activeProjectId);
+  if (!project) return;
+  const t = project.workOrders.find(w => w.id === ticketId);
+  if (!t) return;
+
+  t.subscribers = t.subscribers || [];
+  const idx = t.subscribers.indexOf(userEmail);
+  if (isSubscribed && idx === -1) {
+    t.subscribers.push(userEmail);
+  } else if (!isSubscribed && idx !== -1) {
+    t.subscribers.splice(idx, 1);
+  }
+  saveData();
+  renderTickets();
+  renderKanban();
+}
 </script>
 
 </body>
