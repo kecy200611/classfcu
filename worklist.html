@@ -33,6 +33,7 @@
     button.primary { background: var(--accent); color: white; border-color: var(--accent); }
     button.primary:hover { background: #1d4ed8; }
     button.secondary { background: #f1f5f9; border-color: var(--border); }
+    button.timer-active { background: #fee2e2; color: var(--danger); border-color: #fecaca; }
 
     .user-badge { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 5px 12px; background: #e2e8f0; border-radius: 20px; }
     .btn-link-action { border: none; background: transparent; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0; text-decoration: underline; font-weight: normal; }
@@ -84,6 +85,7 @@
     .badge-visuals { background: #fef3c7; color: #92400e; }
     .badge-review { background: #f3e8ff; color: #6b21a8; }
     .badge-coordination { background: #f1f5f9; color: #475569; }
+    .badge-urgent { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; font-size: 11px; padding: 2px 6px; border-radius: 4px; font-weight: bold; display: inline-block; }
 
     .progress-bar-container { background: #e2e8f0; border-radius: 4px; height: 6px; width: 100%; overflow: hidden; margin-top: 6px; }
     .progress-bar-fill { background: var(--accent); height: 100%; transition: width 0.3s; }
@@ -95,10 +97,25 @@
 
     .btn-delete { color: var(--danger); border-color: #fecaca; padding: 4px 8px; font-size: 12px; }
     .btn-delete:hover { background: #fee2e2; }
-    .hours-input { width: 65px; padding: 4px 6px; font-size: 12px; text-align: right; }
+    .hours-input { width: 60px; padding: 4px 6px; font-size: 12px; text-align: right; }
     .empty-state { text-align: center; color: var(--text-light); padding: 32px 0; font-size: 14px; }
     .dynamic-subtask-row { display: flex; gap: 8px; margin-bottom: 6px; }
     .dynamic-subtask-row input { flex: 1; }
+
+    .view-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .view-tab-btn { padding: 6px 14px; font-weight: 600; border-radius: 6px; border: 1px solid var(--border); background: #fff; cursor: pointer; }
+    .view-tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    
+    .kanban-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 10px; }
+    @media (max-width: 900px) { .kanban-board { grid-template-columns: 1fr; } }
+    .kanban-col { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 12px; min-height: 350px; }
+    .kanban-col-header { font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+    .kanban-card { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .kanban-card h4 { font-size: 13px; margin-bottom: 6px; color: var(--text); }
+    
+    .comments-section { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); font-size: 12px; }
+    .comment-bubble { background: #f1f5f9; padding: 5px 8px; border-radius: 4px; margin-bottom: 4px; }
+    .file-link { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--accent); text-decoration: underline; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -187,7 +204,10 @@
 
     <!-- 派發工單 -->
     <div class="card">
-      <h2>📝 派發新工單與細節拆解</h2>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h2 style="margin-bottom:0;">📝 派發新工單與細節拆解</h2>
+        <button type="button" class="secondary" onclick="applyStandardReportTemplate()">⚡ 套用標準報告範本</button>
+      </div>
       <form id="ticketForm" onsubmit="handleCreateTicket(event)">
         <div class="form-grid">
           <div><label>工單編號</label><input type="text" id="woNumber" readonly></div>
@@ -221,6 +241,11 @@
         </div>
 
         <div class="form-group">
+          <label>📎 交付物連結 (Google Docs/Slides/雲端硬碟/GitHub 連結，選填)</label>
+          <input type="url" id="fileUrl" placeholder="https://...">
+        </div>
+
+        <div class="form-group">
           <label>細節子任務 / 驗收檢核清單</label>
           <div id="subtaskInputs">
             <div class="dynamic-subtask-row">
@@ -234,8 +259,14 @@
       </form>
     </div>
 
-    <!-- 工單列表 -->
-    <div class="card">
+    <!-- 視角切換 (清單 / 看板) -->
+    <div class="view-tabs">
+      <button class="view-tab-btn active" id="tabTableBtn" onclick="switchTicketView('table')">📑 清單列表視圖</button>
+      <button class="view-tab-btn" id="tabKanbanBtn" onclick="switchTicketView('kanban')">📌 拖拉看板視圖</button>
+    </div>
+
+    <!-- 工單列表 (清單視圖) -->
+    <div class="card" id="tableViewCard">
       <h2>📑 工單詳細清單</h2>
       <div style="overflow-x: auto;">
         <table>
@@ -243,11 +274,12 @@
             <tr>
               <th>工單編號</th>
               <th>任務性質</th>
-              <th style="min-width: 240px;">任務目標與細節進度</th>
+              <th style="min-width: 240px;">任務目標、交付物與細節</th>
               <th>負責人</th>
               <th>預估工時</th>
-              <th>實際工時</th>
+              <th>實際工時 (計時)</th>
               <th>截止日</th>
+              <th>訂閱</th>
               <th>狀態</th>
               <th>操作</th>
             </tr>
@@ -257,6 +289,42 @@
       </div>
       <div id="noTickets" class="empty-state" style="display: none;">此專案內尚無工單。</div>
     </div>
+
+    <!-- 看板視圖 -->
+    <div class="card" id="kanbanViewCard" style="display: none;">
+      <h2>📌 專案任務看板 (Kanban)</h2>
+      <div class="kanban-board">
+        <div class="kanban-col" ondragover="allowDrop(event)" ondrop="dropTicket(event, 'Open')">
+          <div class="kanban-col-header">
+            <span>待辦 (Open)</span>
+            <span id="kCountOpen" class="badge">0</span>
+          </div>
+          <div id="kListOpen"></div>
+        </div>
+        <div class="kanban-col" ondragover="allowDrop(event)" ondrop="dropTicket(event, 'In Progress')">
+          <div class="kanban-col-header">
+            <span>進行中 (In Progress)</span>
+            <span id="kCountProgress" class="badge" style="background:#e0e7ff; color:#3730a3;">0</span>
+          </div>
+          <div id="kListProgress"></div>
+        </div>
+        <div class="kanban-col" ondragover="allowDrop(event)" ondrop="dropTicket(event, 'Review')">
+          <div class="kanban-col-header">
+            <span>待審核 (Review)</span>
+            <span id="kCountReview" class="badge" style="background:#fef3c7; color:#92400e;">0</span>
+          </div>
+          <div id="kListReview"></div>
+        </div>
+        <div class="kanban-col" ondragover="allowDrop(event)" ondrop="dropTicket(event, 'Closed')">
+          <div class="kanban-col-header">
+            <span>已結案 (Closed)</span>
+            <span id="kCountClosed" class="badge" style="background:#d1fae5; color:#065f46;">0</span>
+          </div>
+          <div id="kListClosed"></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -265,7 +333,9 @@
 
   let teamPassword = localStorage.getItem("team_sys_auth_key") || "";
   let userEmail = localStorage.getItem("team_sub_email") || "";
-  let isSyncing = false; // 避免同時推送與輪詢覆蓋
+  let isSyncing = false; 
+  let currentTicketView = "table";
+  let activeTimers = {};
 
   function ensureCredentials() {
     if (!teamPassword) {
@@ -322,7 +392,6 @@
     if (teamPassword) {
       fetchProjectData(false);
       setInterval(() => {
-        // 若非同步中且畫面無聚焦在輸入框時才執行自動輪詢
         const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
         if (!isSyncing && activeTag !== "input" && activeTag !== "textarea") {
           fetchProjectData(false);
@@ -357,6 +426,7 @@
         appData = data;
         if (activeProjectId) {
           renderTickets();
+          renderKanban();
           updateMetrics();
           updateDetailSubscriptionState();
         } else {
@@ -379,7 +449,7 @@
     try {
       const payload = {
         authKey: teamPassword,
-        clientBaseUpdated: appData.lastUpdated, // 帶入前端當前持有之版本時間戳
+        clientBaseUpdated: appData.lastUpdated,
         projects: appData.projects
       };
 
@@ -394,7 +464,7 @@
       const result = await res.json();
 
       if (result.status === "success") {
-        appData.lastUpdated = result.lastUpdated; // 更新為伺服器確認的時間戳
+        appData.lastUpdated = result.lastUpdated;
         updateSyncIndicator("online", "🟢 已同步至試算表");
       } else if (result.status === "conflict") {
         updateSyncIndicator("offline", "⚠️ 資料版本衝突");
@@ -462,6 +532,29 @@
     document.getElementById("projectDetailSubCheckbox").checked = isSubscribed;
   }
 
+  function toggleTicketSubscription(ticketId, isSubscribed) {
+    if (!userEmail) {
+      alert("請先設定您的通知信箱！");
+      changeUserEmail();
+      if (!userEmail) return;
+    }
+    const project = appData.projects.find(p => p.id === activeProjectId);
+    if (!project) return;
+    const t = project.workOrders.find(w => w.id === ticketId);
+    if (!t) return;
+
+    t.subscribers = t.subscribers || [];
+    const idx = t.subscribers.indexOf(userEmail);
+    if (isSubscribed && idx === -1) {
+      t.subscribers.push(userEmail);
+    } else if (!isSubscribed && idx !== -1) {
+      t.subscribers.splice(idx, 1);
+    }
+    saveData();
+    renderTickets();
+    renderKanban();
+  }
+
   /* ========== 專案管理邏輯 ========== */
   function renderProjects() {
     activeProjectId = null;
@@ -501,7 +594,7 @@
         <div class="project-sub-bar">
           <label class="sub-checkbox-label" onclick="event.stopPropagation()">
             <input type="checkbox" ${isSubscribed ? 'checked' : ''} onchange="toggleSubscription('${p.id}', this.checked, event)">
-            <span>${isSubscribed ? '🔔 已訂閱通知' : '🔕 預設未訂閱'}</span>
+            <span>${isSubscribed ? '🔔 已訂閱專案' : '🔕 預設未訂閱'}</span>
           </label>
           <span style="color:var(--text-light); font-size:11px;">已訂閱: ${(p.subscribers || []).length} 人</span>
         </div>
@@ -556,13 +649,144 @@
     resetSubtaskForm();
     updateNextWONumber();
     renderTickets();
+    renderKanban();
     updateMetrics();
+  }
+
+  /* ========== 報告範本套用邏輯 ========== */
+  function applyStandardReportTemplate() {
+    const project = appData.projects.find(p => p.id === activeProjectId);
+    if (!project) return;
+
+    if (!confirm("確定要自動為本專案生成 4 筆標準團隊報告工單（調研、執行、簡報、審查）嗎？")) return;
+
+    const today = new Date();
+    const defaultDate = (days) => {
+      const d = new Date();
+      d.setDate(today.getDate() + days);
+      return d.toISOString().split('T')[0];
+    };
+
+    const templateWOs = [
+      {
+        id: `WO-${String((project.workOrders || []).length + 1).padStart(3, '0')}`,
+        category: "Research",
+        task: "文獻與背景資料蒐集整理",
+        assignee: "調研組",
+        estHours: 6,
+        actHours: 0,
+        deadline: defaultDate(4),
+        status: "Open",
+        fileUrl: "",
+        comments: [],
+        subscribers: userEmail ? [userEmail] : [],
+        createdAt: new Date().toISOString(),
+        subtasks: [
+          { id: "ST-" + Date.now() + "-1", text: "檢索至少 3 篇核心論文/參考案例", completed: false },
+          { id: "ST-" + Date.now() + "-2", text: "彙整文獻重點成摘要表格", completed: false }
+        ]
+      },
+      {
+        id: `WO-${String((project.workOrders || []).length + 2).padStart(3, '0')}`,
+        category: "Execution",
+        task: "報告核心內容與數據分析撰寫",
+        assignee: "分析組",
+        estHours: 10,
+        actHours: 0,
+        deadline: defaultDate(8),
+        status: "Open",
+        fileUrl: "",
+        comments: [],
+        subscribers: userEmail ? [userEmail] : [],
+        createdAt: new Date().toISOString(),
+        subtasks: [
+          { id: "ST-" + Date.now() + "-3", text: "完成主體架構論述", completed: false },
+          { id: "ST-" + Date.now() + "-4", text: "產出圖表與數據佐證", completed: false }
+        ]
+      },
+      {
+        id: `WO-${String((project.workOrders || []).length + 3).padStart(3, '0')}`,
+        category: "Visuals",
+        task: "簡報 PPT 設計與排版美化",
+        assignee: "視覺組",
+        estHours: 5,
+        actHours: 0,
+        deadline: defaultDate(11),
+        status: "Open",
+        fileUrl: "",
+        comments: [],
+        subscribers: userEmail ? [userEmail] : [],
+        createdAt: new Date().toISOString(),
+        subtasks: [
+          { id: "ST-" + Date.now() + "-5", text: "設定統一風格版型", completed: false },
+          { id: "ST-" + Date.now() + "-6", text: "各頁重點視覺化與精煉文字", completed: false }
+        ]
+      },
+      {
+        id: `WO-${String((project.workOrders || []).length + 4).padStart(3, '0')}`,
+        category: "Review",
+        task: "交叉審查與口頭報告預演",
+        assignee: "全體組員",
+        estHours: 3,
+        actHours: 0,
+        deadline: defaultDate(13),
+        status: "Open",
+        fileUrl: "",
+        comments: [],
+        subscribers: userEmail ? [userEmail] : [],
+        createdAt: new Date().toISOString(),
+        subtasks: [
+          { id: "ST-" + Date.now() + "-7", text: "互相挑錯字與數據除錯", completed: false },
+          { id: "ST-" + Date.now() + "-8", text: "計時預演與 Q&A 擬答", completed: false }
+        ]
+      }
+    ];
+
+    project.workOrders = project.workOrders || [];
+    project.workOrders.push(...templateWOs);
+    saveData();
+    renderTickets();
+    renderKanban();
+    updateMetrics();
+    updateNextWONumber();
+  }
+
+  /* ========== 一鍵計時器 (Stopwatch) ========== */
+  function toggleTimer(ticketId, btn) {
+    if (activeTimers[ticketId]) {
+      clearInterval(activeTimers[ticketId].intervalId);
+      const elapsedMinutes = (Date.now() - activeTimers[ticketId].startTime) / (1000 * 60);
+      const elapsedHours = Math.round((elapsedMinutes / 60) * 10) / 10;
+      delete activeTimers[ticketId];
+
+      const project = appData.projects.find(p => p.id === activeProjectId);
+      const t = project.workOrders.find(w => w.id === ticketId);
+      if (t) {
+        t.actHours = Math.round(((t.actHours || 0) + elapsedHours) * 10) / 10;
+        saveData();
+        renderTickets();
+        renderKanban();
+        updateMetrics();
+      }
+      btn.innerText = "⏱️ 計時";
+      btn.classList.remove("timer-active");
+    } else {
+      activeTimers[ticketId] = {
+        startTime: Date.now(),
+        intervalId: setInterval(() => {
+          const m = Math.floor((Date.now() - activeTimers[ticketId].startTime) / 60000);
+          btn.innerText = `⏹️ 計時中 (${m}m)`;
+        }, 10000)
+      };
+      btn.innerText = "⏹️ 計時中 (0m)";
+      btn.classList.add("timer-active");
+    }
   }
 
   /* ========== 子任務表單 ========== */
   function addSubtaskRow() {
     const container = document.getElementById("subtaskInputs");
-    const div = document.createElement("div");
+    const div = document.createElement("dynamic-subtask-row");
     div.className = "dynamic-subtask-row";
     div.innerHTML = `
       <input type="text" class="subtask-field" placeholder="細節步驟或驗收項目...">
@@ -611,7 +835,10 @@
       id: document.getElementById("woNumber").value,
       category: document.getElementById("category").value,
       task: document.getElementById("taskDesc").value.trim(),
+      fileUrl: document.getElementById("fileUrl").value.trim(),
       subtasks: subtasks,
+      comments: [],
+      subscribers: userEmail ? [userEmail] : [],
       assignee: document.getElementById("assignee").value.trim(),
       estHours: parseFloat(document.getElementById("estHours").value) || 0,
       actHours: 0,
@@ -624,6 +851,7 @@
     project.workOrders.unshift(newTicket);
     saveData();
     renderTickets();
+    renderKanban();
     updateMetrics();
 
     document.getElementById("ticketForm").reset();
@@ -645,6 +873,7 @@
       }
       saveData();
       renderTickets();
+      renderKanban();
       updateMetrics();
     }
   }
@@ -661,6 +890,7 @@
       saveData();
       updateMetrics();
       renderTickets();
+      renderKanban();
     }
   }
 
@@ -675,6 +905,26 @@
     }
   }
 
+  function addComment(ticketId) {
+    const project = appData.projects.find(p => p.id === activeProjectId);
+    if (!project) return;
+    const t = project.workOrders.find(w => w.id === ticketId);
+    if (!t) return;
+
+    const text = prompt("請輸入討論留言 / 修改意見：");
+    if (text && text.trim()) {
+      t.comments = t.comments || [];
+      t.comments.push({
+        user: userEmail ? userEmail.split('@')[0] : "成員",
+        text: text.trim(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
+      saveData();
+      renderTickets();
+      renderKanban();
+    }
+  }
+
   function deleteTicket(ticketId) {
     const project = appData.projects.find(p => p.id === activeProjectId);
     if (!project) return;
@@ -682,6 +932,7 @@
       project.workOrders = project.workOrders.filter(w => w.id !== ticketId);
       saveData();
       renderTickets();
+      renderKanban();
       updateMetrics();
       updateNextWONumber();
     }
@@ -698,6 +949,7 @@
     }
   }
 
+  /* ========== 渲染工單清單視圖 ========== */
   function renderTickets() {
     const project = appData.projects.find(p => p.id === activeProjectId);
     if (!project) return;
@@ -717,6 +969,8 @@
       const totalSt = (t.subtasks || []).length;
       const completedSt = (t.subtasks || []).filter(s => s.completed).length;
       const progressPercent = totalSt > 0 ? Math.round((completedSt / totalSt) * 100) : (t.status === "Closed" ? 100 : 0);
+      const urgentStatus = checkUrgent(t.deadline, t.status);
+      const isWoSubscribed = userEmail ? (t.subscribers || []).includes(userEmail) : false;
 
       let subtasksHtml = "";
       if (totalSt > 0) {
@@ -741,21 +995,41 @@
         `;
       }
 
+      let fileHtml = t.fileUrl ? `<div><a href="${escapeHtml(t.fileUrl)}" target="_blank" class="file-link">📎 交付物連結</a></div>` : "";
+      let commentsHtml = `
+        <div class="comments-section">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:var(--text-light); font-size:11px;">💬 討論 (${(t.comments || []).length})</span>
+            <button type="button" class="btn-link-action" onclick="addComment('${t.id}')">＋ 留言</button>
+          </div>
+          ${(t.comments || []).slice(-2).map(c => `<div class="comment-bubble"><b>${escapeHtml(c.user)}:</b> ${escapeHtml(c.text)} <span style="font-size:10px; color:#888;">${c.time}</span></div>`).join('')}
+        </div>
+      `;
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td class="wo-id">${t.id}</td>
         <td>${getCategoryBadge(t.category)}</td>
         <td style="max-width: 320px;">
-          <div>${escapeHtml(t.task)}</div>
+          <div><strong>${escapeHtml(t.task)}</strong></div>
+          ${fileHtml}
           ${subtasksHtml}
+          ${commentsHtml}
         </td>
         <td><strong>${escapeHtml(t.assignee)}</strong></td>
         <td>${t.estHours} h</td>
         <td>
           <input type="number" class="hours-input" min="0" step="0.5" value="${t.actHours}" onchange="updateActualHours('${t.id}', this.value)"> h
+          <div style="margin-top:4px;">
+            <button type="button" style="font-size:11px; padding:2px 6px;" onclick="toggleTimer('${t.id}', this)">⏱️ 計時</button>
+          </div>
         </td>
-        <td style="font-size: 13px; color: ${isOverdue(t.deadline, t.status) ? 'var(--danger)' : 'inherit'}">
-          ${t.deadline} ${isOverdue(t.deadline, t.status) ? '⚠️' : ''}
+        <td>
+          <span style="${urgentStatus ? 'color:var(--danger); font-weight:bold;' : ''}">${t.deadline}</span>
+          ${urgentStatus ? `<br><span class="badge-urgent">${urgentStatus}</span>` : ''}
+        </td>
+        <td style="text-align: center;">
+          <input type="checkbox" title="訂閱此工單獨立通知" ${isWoSubscribed ? 'checked' : ''} onchange="toggleTicketSubscription('${t.id}', this.checked)">
         </td>
         <td>
           <select onchange="updateTicketStatus('${t.id}', this.value)" style="padding: 4px 6px; font-size: 12px;">
@@ -771,6 +1045,95 @@
       `;
       tbody.appendChild(tr);
     });
+  }
+
+  /* ========== 渲染看板視圖 (Kanban) ========== */
+  function renderKanban() {
+    const project = appData.projects.find(p => p.id === activeProjectId);
+    if (!project) return;
+    const wos = project.workOrders || [];
+
+    const cols = {
+      "Open": document.getElementById("kListOpen"),
+      "In Progress": document.getElementById("kListProgress"),
+      "Review": document.getElementById("kListReview"),
+      "Closed": document.getElementById("kListClosed")
+    };
+    Object.values(cols).forEach(el => el.innerHTML = "");
+
+    const counts = { "Open": 0, "In Progress": 0, "Review": 0, "Closed": 0 };
+
+    wos.forEach(t => {
+      const stKey = cols[t.status] ? t.status : "Open";
+      counts[stKey]++;
+      const urgentStatus = checkUrgent(t.deadline, t.status);
+      const isWoSubscribed = userEmail ? (t.subscribers || []).includes(userEmail) : false;
+
+      const card = document.createElement("div");
+      card.className = "kanban-card";
+      card.draggable = true;
+      card.ondragstart = (e) => e.dataTransfer.setData("text/plain", t.id);
+
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span class="wo-id">${t.id}</span>
+          <div>
+            ${getCategoryBadge(t.category)}
+            <span title="工單訂閱狀態" style="font-size:12px; margin-left:4px; cursor:pointer;" onclick="toggleTicketSubscription('${t.id}', ${!isWoSubscribed})">${isWoSubscribed ? '🔔' : '🔕'}</span>
+          </div>
+        </div>
+        <h4>${escapeHtml(t.task)}</h4>
+        <div style="font-size:12px; color:var(--text-light); margin-bottom:6px;">
+          👤 ${escapeHtml(t.assignee)} ｜ ⏱️ ${t.actHours}/${t.estHours}h
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px;">
+          <span>📅 ${t.deadline}</span>
+          ${urgentStatus ? `<span class="badge-urgent">${urgentStatus}</span>` : ''}
+        </div>
+        ${t.fileUrl ? `<div><a href="${escapeHtml(t.fileUrl)}" target="_blank" class="file-link">📎 交付物</a></div>` : ''}
+      `;
+      cols[stKey].appendChild(card);
+    });
+
+    document.getElementById("kCountOpen").innerText = counts["Open"];
+    document.getElementById("kCountProgress").innerText = counts["In Progress"];
+    document.getElementById("kCountReview").innerText = counts["Review"];
+    document.getElementById("kCountClosed").innerText = counts["Closed"];
+  }
+
+  function switchTicketView(view) {
+    currentTicketView = view;
+    if (view === 'table') {
+      document.getElementById("tableViewCard").style.display = "block";
+      document.getElementById("kanbanViewCard").style.display = "none";
+      document.getElementById("tabTableBtn").classList.add("active");
+      document.getElementById("tabKanbanBtn").classList.remove("active");
+      renderTickets();
+    } else {
+      document.getElementById("tableViewCard").style.display = "none";
+      document.getElementById("kanbanViewCard").style.display = "block";
+      document.getElementById("tabTableBtn").classList.remove("active");
+      document.getElementById("tabKanbanBtn").classList.add("active");
+      renderKanban();
+    }
+  }
+
+  function allowDrop(e) { e.preventDefault(); }
+  function dropTicket(e, targetStatus) {
+    e.preventDefault();
+    const ticketId = e.dataTransfer.getData("text/plain");
+    if (ticketId) updateTicketStatus(ticketId, targetStatus);
+  }
+
+  function checkUrgent(dateStr, status) {
+    if (status === "Closed" || !dateStr) return null;
+    const now = new Date();
+    const deadlineDate = new Date(dateStr + "T23:59:59");
+    const diffHours = (deadlineDate - now) / (1000 * 60 * 60);
+
+    if (diffHours < 0) return "⚠️ 已逾期";
+    if (diffHours <= 24) return "⚠️ 24h 內到期";
+    return null;
   }
 
   function updateMetrics() {
@@ -804,39 +1167,9 @@
     document.getElementById("metricSubtaskRate").innerText = `${subtaskRate}%`;
   }
 
-  function isOverdue(dateStr, status) {
-    if (status === "Closed" || !dateStr) return false;
-    const today = new Date().toISOString().split('T')[0];
-    return dateStr < today;
-  }
-
   function escapeHtml(str) {
     return (str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
-
-  // 在前端工單清單與看板加上工單訂閱邏輯
-function toggleTicketSubscription(ticketId, isSubscribed) {
-  if (!userEmail) {
-    alert("請先設定您的通知信箱！");
-    changeUserEmail();
-    if (!userEmail) return;
-  }
-  const project = appData.projects.find(p => p.id === activeProjectId);
-  if (!project) return;
-  const t = project.workOrders.find(w => w.id === ticketId);
-  if (!t) return;
-
-  t.subscribers = t.subscribers || [];
-  const idx = t.subscribers.indexOf(userEmail);
-  if (isSubscribed && idx === -1) {
-    t.subscribers.push(userEmail);
-  } else if (!isSubscribed && idx !== -1) {
-    t.subscribers.splice(idx, 1);
-  }
-  saveData();
-  renderTickets();
-  renderKanban();
-}
 </script>
 
 </body>
