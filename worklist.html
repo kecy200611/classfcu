@@ -392,36 +392,12 @@
     ensureCredentials();
     if (teamPassword) {
       fetchProjectData(false);
-      // 25秒輕量版本輪詢
-      setInterval(() => {
-        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
-        if (!isSyncing && activeTag !== "input" && activeTag !== "textarea") {
-          smartPollData();
-        }
-      }, 25000);
     } else {
       updateSyncIndicator("offline", "❌ 未授權密碼");
     }
   };
 
   /* ========== 遠端 API 串接 ========== */
-  async function smartPollData() {
-    if (!teamPassword || isSyncing) return;
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      const res = await fetch(`${GAS_API_URL}?authKey=${encodeURIComponent(teamPassword)}&checkOnly=true`, {
-        method: "GET",
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      const data = await res.json();
-      if (data && data.status === "success" && data.lastUpdated !== appData.lastUpdated) {
-        fetchProjectData(false);
-      }
-    } catch(e) {}
-  }
-
   async function fetchProjectData(showFeedback = false) {
     if (!teamPassword || isSyncing) return;
     updateSyncIndicator("syncing", "同步中...");
@@ -513,12 +489,13 @@
     el.innerText = text;
   }
 
-  // 600ms 防抖儲存，避免連續打勾產生請求撞車
+  // 5000ms (5秒) 防抖自動存檔：無後續更動才寫入試算表
   function saveData() {
     clearTimeout(saveTimeout);
+    updateSyncIndicator("syncing", "⏳ 5秒後自動儲存...");
     saveTimeout = setTimeout(() => {
       pushProjectData();
-    }, 600);
+    }, 5000);
   }
 
   /* ========== 郵件訂閱邏輯 ========== */
